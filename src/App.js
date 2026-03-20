@@ -222,6 +222,7 @@ export default function ScoutingApp() {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [selectedRecordIndex, setSelectedRecordIndex] = useState(0);
   const [perfilFilterScout, setPerfilFilterScout] = useState("");
+  const [perfilSearch, setPerfilSearch] = useState("");
   const [idealXI, setIdealXI] = useState({});
   const [assigningSlot, setAssigningSlot] = useState(null);
   const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbyuVDCmpWbKcTfYejco5AShNy5pZD-QPo9cF8wiudi2jE7ySBRR_fE8JgfjQlRZrX9Hzg/exec");
@@ -1011,10 +1012,16 @@ export default function ScoutingApp() {
                 grouped[key].push(p);
               });
 
-              // Filtrar por scout si hay filtro activo
-              const uniquePlayers = Object.values(grouped).filter(records =>
-                !perfilFilterScout || records.some(r => r.scout === perfilFilterScout)
-              );
+              // Filtrar por scout y búsqueda
+              const uniquePlayers = Object.values(grouped).filter(records => {
+                const matchScout = !perfilFilterScout || records.some(r => r.scout === perfilFilterScout);
+                const matchSearch = !perfilSearch || records.some(r =>
+                  `${r.nombre} ${r.apellido}`.toLowerCase().includes(perfilSearch.toLowerCase()) ||
+                  (r.equipo||"").toLowerCase().includes(perfilSearch.toLowerCase()) ||
+                  (r.posicion||"").toLowerCase().includes(perfilSearch.toLowerCase())
+                );
+                return matchScout && matchSearch;
+              });
 
               // Registros del jugador seleccionado
               const selectedKey = selectedPlayer ? `${selectedPlayer.nombre}|${selectedPlayer.apellido}` : null;
@@ -1025,17 +1032,26 @@ export default function ScoutingApp() {
               <div>
                 <p style={sectionTitle}>Jugadores Registrados</p>
 
-                {/* Filtro de scout */}
-                <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"flex-end"}}>
-                  <div style={{maxWidth:260}}>
+                {/* Filtros */}
+                <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"flex-end",flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:200}}>
+                    <label style={labelStyle}>Buscar jugador</label>
+                    <input
+                      style={inputStyle}
+                      placeholder="Nombre, equipo o posición..."
+                      value={perfilSearch}
+                      onChange={e=>{setPerfilSearch(e.target.value);setSelectedPlayer(null);}}
+                    />
+                  </div>
+                  <div style={{maxWidth:220}}>
                     <label style={labelStyle}>Filtrar por Scout</label>
                     <select style={selectStyle} value={perfilFilterScout} onChange={e=>{setPerfilFilterScout(e.target.value);setSelectedPlayer(null);}}>
                       <option value="">Todos los scouts</option>
                       {SCOUTS.map(s=><option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
-                  {perfilFilterScout && (
-                    <button className="btn-sec" onClick={()=>{setPerfilFilterScout("");setSelectedPlayer(null);}}>
+                  {(perfilFilterScout || perfilSearch) && (
+                    <button className="btn-sec" onClick={()=>{setPerfilFilterScout("");setPerfilSearch("");setSelectedPlayer(null);}}>
                       Limpiar ×
                     </button>
                   )}
