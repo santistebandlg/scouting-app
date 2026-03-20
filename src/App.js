@@ -154,11 +154,11 @@ function FootballField({ positions, assignments, playerData={}, onSlotClick, int
             }}>
             <div style={{
               width:34, height:34, borderRadius:"50%",
-              background: playerName ? "linear-gradient(135deg,#4ade80,#16a34a)" : "rgba(0,0,0,0.5)",
-              border: playerName ? "2px solid #86efac" : "2px dashed rgba(255,255,255,0.4)",
+              background: playerName ? "linear-gradient(135deg,#ef4444,#b91c1c)" : "rgba(0,0,0,0.5)",
+              border: playerName ? "2px solid #fca5a5" : "2px dashed rgba(255,255,255,0.4)",
               display:"flex", alignItems:"center", justifyContent:"center",
               backdropFilter:"blur(4px)",
-              boxShadow: playerName ? "0 0 12px rgba(74,222,128,0.5)" : "none",
+              boxShadow: playerName ? "0 0 12px rgba(239,68,68,0.6)" : "none",
               transition:"all 0.2s"
             }}>
               {playerName ? (
@@ -295,15 +295,32 @@ export default function ScoutingApp() {
     filteredPlayers.forEach(p => { if(p.posicion && !posMap[p.posicion]) posMap[p.posicion] = p; });
     const fieldPlayers = Object.values(posMap);
 
+    // Cancha con franjas
     doc.setFillColor(21, 128, 61);
     doc.roundedRect(fieldX, fieldY, fieldW, fieldH, 3, 3, "F");
+
+    // Franjas alternadas
+    const stripeH = fieldH / 8;
+    for (let i = 0; i < 8; i++) {
+      if (i % 2 === 0) {
+        doc.setFillColor(0, 0, 0);
+        doc.setGState(doc.GState({opacity: 0.05}));
+        doc.rect(fieldX, fieldY + i * stripeH, fieldW, stripeH, "F");
+        doc.setGState(doc.GState({opacity: 1}));
+      }
+    }
+
+    // Líneas del campo
     doc.setDrawColor(255,255,255);
     doc.setLineWidth(0.3);
     doc.rect(fieldX+3, fieldY+2, fieldW-6, fieldH-4);
     doc.line(fieldX+3, fieldY+fieldH/2, fieldX+fieldW-3, fieldY+fieldH/2);
     doc.circle(fieldX+fieldW/2, fieldY+fieldH/2, 10);
+    doc.circle(fieldX+fieldW/2, fieldY+fieldH/2, 0.8, "F");
     doc.rect(fieldX+3+(fieldW-6)*0.22, fieldY+2, (fieldW-6)*0.56, (fieldH-4)*0.17);
+    doc.rect(fieldX+3+(fieldW-6)*0.35, fieldY+2, (fieldW-6)*0.30, (fieldH-4)*0.08);
     doc.rect(fieldX+3+(fieldW-6)*0.22, fieldY+fieldH-2-(fieldH-4)*0.17, (fieldW-6)*0.56, (fieldH-4)*0.17);
+    doc.rect(fieldX+3+(fieldW-6)*0.35, fieldY+fieldH-2-(fieldH-4)*0.08, (fieldW-6)*0.30, (fieldH-4)*0.08);
 
     // Jugadores en la cancha
     POSITIONS_FIELD.forEach(pos => {
@@ -311,25 +328,32 @@ export default function ScoutingApp() {
       const cx = fieldX + (pos.x/100)*fieldW;
       const cy = fieldY + (pos.y/100)*fieldH;
       if (p) {
-        doc.setFillColor(...green);
-        doc.circle(cx, cy, 3.5, "F");
-        doc.setTextColor(0,0,0);
+        // Círculo rojo con gradiente simulado
+        doc.setFillColor(239, 68, 68);
+        doc.circle(cx, cy, 3.8, "F");
+        doc.setDrawColor(252, 165, 165);
+        doc.setLineWidth(0.5);
+        doc.circle(cx, cy, 3.8);
+        doc.setTextColor(255,255,255);
         doc.setFont("helvetica","bold");
-        doc.setFontSize(5);
+        doc.setFontSize(4.5);
         doc.text(pos.label, cx, cy+0.8, {align:"center"});
+        // Etiqueta nombre
         doc.setFillColor(0,0,0);
         const name = `${p.nombre} ${p.apellido}`;
         const nameW = doc.getTextWidth(name)+3;
-        doc.roundedRect(cx-nameW/2, cy+4, nameW, 4, 1, 1, "F");
+        doc.roundedRect(cx-nameW/2, cy+4.5, nameW, 4.5, 1, 1, "F");
         doc.setTextColor(255,255,255);
         doc.setFontSize(5);
-        doc.text(name, cx, cy+7, {align:"center"});
+        doc.text(name, cx, cy+7.5, {align:"center"});
       } else {
-        doc.setDrawColor(...textMuted);
-        doc.setLineWidth(0.3);
+        doc.setDrawColor(150,150,150);
+        doc.setLineWidth(0.2);
+        doc.setLineDashPattern([0.5,0.5], 0);
         doc.circle(cx, cy, 3.5);
-        doc.setTextColor(...textMuted);
-        doc.setFontSize(5);
+        doc.setLineDashPattern([], 0);
+        doc.setTextColor(150,150,150);
+        doc.setFontSize(4.5);
         doc.setFont("helvetica","normal");
         doc.text(pos.label, cx, cy+0.8, {align:"center"});
       }
