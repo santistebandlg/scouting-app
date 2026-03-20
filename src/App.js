@@ -4,7 +4,7 @@ import jsPDF from "jspdf";
 
 const SCOUTS = [
   "Andrés Velasco","Bernardo Livramento","Cristian Franco",
-  "Jacson Gabriel","Joan Cami","Manuel González","Santiago Riani"
+  "Jacson Gabriel","Joan Cami","Manuel González","Nelson Roa","Santiago Riani"
 ];
 
 const POSITIONS_FIELD = [
