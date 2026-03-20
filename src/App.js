@@ -10,9 +10,9 @@ const SCOUTS = [
 const POSITIONS_FIELD = [
   { id:"POR", label:"POR", x:50, y:95 },
   { id:"LI",  label:"LI",  x:8,  y:80 },
-  { id:"DFC1",label:"DFC", x:30, y:83 },
+  { id:"DFCI",label:"DFCI", x:30, y:83 },
   { id:"LIB", label:"LIB", x:50, y:86 },
-  { id:"DFC2",label:"DFC", x:70, y:83 },
+  { id:"DFCD",label:"DFCD", x:70, y:83 },
   { id:"LD",  label:"LD",  x:92, y:80 },
   { id:"CAI", label:"CAI", x:8,  y:68 },
   { id:"MDP", label:"MDP", x:50, y:68 },
@@ -39,8 +39,8 @@ const POSITION_NAMES = {
   POR:  "Portero",
   LI:   "Lateral Izquierdo",
   LD:   "Lateral Derecho",
-  DFC1: "Defensa Central",
-  DFC2: "Defensa Central",
+  DFCI: "Defensa Central Izquierdo",
+  DFCD: "Defensa Central Derecho",
   LIB:  "Líbero",
   CAI:  "Carrilero Izquierdo",
   CAD:  "Carrilero Derecho",
@@ -240,9 +240,14 @@ export default function ScoutingApp() {
         const res = await fetch(url, { method: "GET" });
         const data = await res.json();
         if (data.success && data.players.length > 0) {
+          const positionMap = { "DFC1": "DFCI", "DFC2": "DFCD" };
           const withIds = data.players
             .filter(p => p.nombre || p.apellido)
-            .map((p, i) => ({ ...p, id: Date.now() + i }));
+            .map((p, i) => ({
+              ...p,
+              posicion: positionMap[p.posicion] || p.posicion,
+              id: Date.now() + i
+            }));
           setPlayers(withIds);
         }
       } catch(err) {
