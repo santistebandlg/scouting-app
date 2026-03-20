@@ -809,7 +809,7 @@ export default function ScoutingApp() {
                     <label style={labelStyle}>Tipo de Transferencia</label>
                     <select style={selectStyle} value={form.transferencia} onChange={e=>setF("transferencia",e.target.value)}>
                       <option value="">Seleccionar</option>
-                      {["N/A","Cesión","Cesión + Opción de compra","Libre","Oportunidad de Mercado (cesión)","Oportunidad de Mercado (venta)"].map(t=><option key={t}>{t}</option>)}
+                      {["N/A","Cesión","Cesión + Opción de compra","Libre","Venta","Oportunidad de Mercado (cesión)","Oportunidad de Mercado (venta)"].map(t=><option key={t}>{t}</option>)}
                     </select>
                   </div>
 
