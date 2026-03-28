@@ -211,7 +211,7 @@ const defaultForm = {
   nombre:"", apellido:"", scout:"", posicion:"", equipo:"",
   perfil:"", fechaNac:"", nacionalidad:"", altura:"", peso:"",
   categoria:"", proyeccion:"", rango:"", transferencia:"", descripcion:"",
-  tactica:5, tecnica:5, mental:5, fisico:5, jornada:"", liga:""
+  tactica:5, tecnica:5, mental:5, fisico:5, jornada:"", liga:"", agente:"", informeFinal:false
 };
 
 export default function ScoutingApp() {
@@ -225,7 +225,7 @@ export default function ScoutingApp() {
   const [perfilSearch, setPerfilSearch] = useState("");
   const [idealXI, setIdealXI] = useState({});
   const [assigningSlot, setAssigningSlot] = useState(null);
-  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbyuVDCmpWbKcTfYejco5AShNy5pZD-QPo9cF8wiudi2jE7ySBRR_fE8JgfjQlRZrX9Hzg/exec");
+  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbwPnYIySF4vOaLpZ9C-ZWuhua50oIcp-S2WW4xyEyMQJ-kGU6wvx79nOHqB-TUwQ4CTGg/exec");
   const [sheetsConnected, setSheetsConnected] = useState(true);
   const [notification, setNotification] = useState(null);
   const [selectingPos, setSelectingPos] = useState(false);
@@ -236,7 +236,7 @@ export default function ScoutingApp() {
   useEffect(() => {
     const loadPlayers = async () => {
       try {
-        const url = "https://script.google.com/macros/s/AKfycbyuVDCmpWbKcTfYejco5AShNy5pZD-QPo9cF8wiudi2jE7ySBRR_fE8JgfjQlRZrX9Hzg/exec?action=read";
+        const url = "https://script.google.com/macros/s/AKfycbwPnYIySF4vOaLpZ9C-ZWuhua50oIcp-S2WW4xyEyMQJ-kGU6wvx79nOHqB-TUwQ4CTGg/exec?action=read";
         const res = await fetch(url, { method: "GET" });
         const data = await res.json();
         if (data.success && data.players.length > 0) {
@@ -246,6 +246,8 @@ export default function ScoutingApp() {
             .map((p, i) => ({
               ...p,
               posicion: positionMap[p.posicion] || p.posicion,
+              agente: p.agente || "",
+              informeFinal: p.scout === "Informe final",
               id: Date.now() + i
             }));
           setPlayers(withIds);
@@ -453,7 +455,7 @@ export default function ScoutingApp() {
         const params = new URLSearchParams({
           nombre: player.nombre,
           apellido: player.apellido,
-          scout: player.scout,
+          scout: player.informeFinal ? "Informe final" : player.scout,
           posicion: player.posicion || "",
           equipo: player.equipo || "",
           perfil: player.perfil || "",
@@ -473,6 +475,7 @@ export default function ScoutingApp() {
           fisico: String(player.fisico),
           jornada: String(player.jornada || ""),
           liga: String(player.liga || ""),
+          agente: String(player.agente || ""),
         });
         fetch(`${sheetsUrl}?${params.toString()}`, { method: "GET", mode: "no-cors" });
         console.log("URL enviada:", `${sheetsUrl}?${params.toString()}`);
@@ -768,7 +771,7 @@ export default function ScoutingApp() {
                   </div>
                   <div style={{marginBottom:12}}>
                     <label style={labelStyle}>Nacionalidad</label>
-                    <input style={inputStyle} value={form.nacionalidad} onChange={e=>setF("nacionalidad",e.target.value)} placeholder="Ej. Española"/>
+                    <input style={inputStyle} value={form.nacionalidad} onChange={e=>setF("nacionalidad",e.target.value)} placeholder="Ej. España"/>
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
                     <div>
@@ -840,6 +843,17 @@ export default function ScoutingApp() {
                     <RatingSlider key={k} label={l} value={form[k]} onChange={v=>setF(k,v)}/>
                   ))}
 
+                  <div style={{marginBottom:16}}>
+                    <label style={labelStyle}>Agente</label>
+                    <input
+                      type="text"
+                      style={inputStyle}
+                      value={form.agente}
+                      onChange={e=>setF("agente",e.target.value)}
+                      placeholder="Ej. Gestifute"
+                    />
+                  </div>
+
                   <p style={sectionTitle}>Descripción</p>
                   <textarea
                     rows={4}
@@ -849,7 +863,34 @@ export default function ScoutingApp() {
                     placeholder="Observaciones del scout sobre el jugador..."
                   />
 
-                  <button className="btn-primary" style={{width:"100%",marginTop:20,opacity:syncing?0.7:1}}
+                  {/* Botón Informe Final */}
+                  <div style={{
+                    display:"flex", alignItems:"center", gap:12,
+                    marginTop:16, padding:"12px 16px", borderRadius:8,
+                    background: form.informeFinal ? "rgba(251,191,36,0.12)" : "rgba(255,255,255,0.03)",
+                    border: `1px solid ${form.informeFinal ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}`,
+                    cursor:"pointer", transition:"all 0.2s"
+                  }} onClick={()=>setF("informeFinal",!form.informeFinal)}>
+                    <div style={{
+                      width:20, height:20, borderRadius:4,
+                      background: form.informeFinal ? "#f59e0b" : "transparent",
+                      border: `2px solid ${form.informeFinal ? "#f59e0b" : "rgba(255,255,255,0.2)"}`,
+                      display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                      transition:"all 0.2s"
+                    }}>
+                      {form.informeFinal && <span style={{color:"#fff",fontSize:12,fontWeight:700}}>✓</span>}
+                    </div>
+                    <div>
+                      <p style={{color: form.informeFinal ? "#f59e0b" : "#94a3b8", fontFamily:"'Barlow Condensed',sans-serif", fontSize:14, letterSpacing:1}}>
+                        INFORME FINAL
+                      </p>
+                      <p style={{color:"#475569", fontSize:11, marginTop:2}}>
+                        {form.informeFinal ? "Se guardará en la pestaña Informe final" : "Se guardará en la pestaña del scout"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button className="btn-primary" style={{width:"100%",marginTop:16,opacity:syncing?0.7:1}}
                     onClick={handleRegister} disabled={syncing}>
                     {syncing ? "⟳ SINCRONIZANDO..." : "✦ REGISTRAR JUGADOR"}
                   </button>
@@ -1090,7 +1131,18 @@ export default function ScoutingApp() {
                         }}>
                         <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:17,fontWeight:700}}>{p.nombre} {p.apellido}</p>
                         <p style={{color:"#64748b",fontSize:12,marginTop:3}}>{p.posicion} · {p.equipo || "—"}</p>
-                        <p style={{color:"#4ade80",fontSize:11,marginTop:4,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>{p.scout}</p>
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}>
+                          <p style={{color:"#4ade80",fontSize:11,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>
+                            {p.informeFinal ? "Informe final" : p.scout}
+                          </p>
+                          {p.informeFinal && (
+                            <span style={{
+                              background:"rgba(251,191,36,0.2)",border:"1px solid rgba(251,191,36,0.5)",
+                              borderRadius:4,padding:"1px 6px",fontSize:9,
+                              color:"#f59e0b",fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1
+                            }}>INFORME FINAL</span>
+                          )}
+                        </div>
                         {records.length > 1 && (
                           <div style={{
                             position:"absolute",top:10,right:10,
@@ -1104,14 +1156,43 @@ export default function ScoutingApp() {
                   })}
                 </div>
 
-                {/* Perfil expandido */}
+                {/* Modal perfil emergente */}
                 {selectedPlayer && currentRecord && (
-                  <div ref={perfilRef} style={{
-                    background:"rgba(255,255,255,0.03)",borderRadius:12,
-                    border:"1px solid rgba(74,222,128,0.15)",padding:28,
-                    animation:"fadeIn 0.3s ease"
-                  }}>
-                    <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
+                  <div style={{
+                    position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",
+                    zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",
+                    padding:20,overflowY:"auto"
+                  }} onClick={()=>setSelectedPlayer(null)}>
+                    <div ref={perfilRef} onClick={e=>e.stopPropagation()} style={{
+                      background:"#0d1a12",borderRadius:14,
+                      border:`1px solid ${currentRecord.informeFinal?"rgba(251,191,36,0.3)":"rgba(74,222,128,0.2)"}`,
+                      padding:28, width:"100%", maxWidth:1000,
+                      maxHeight:"90vh", overflowY:"auto",
+                      animation:"fadeIn 0.25s ease", position:"relative"
+                    }}>
+                      <style>{`@keyframes fadeIn{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}`}</style>
+
+                      {/* Botón cerrar */}
+                      <button onClick={()=>setSelectedPlayer(null)} style={{
+                        position:"absolute",top:16,right:16,
+                        background:"rgba(255,255,255,0.06)",border:"none",
+                        color:"#94a3b8",fontSize:20,cursor:"pointer",
+                        width:32,height:32,borderRadius:"50%",
+                        display:"flex",alignItems:"center",justifyContent:"center"
+                      }}>×</button>
+
+                      {/* Badge informe final */}
+                      {currentRecord.informeFinal && (
+                        <div style={{
+                          display:"inline-flex",alignItems:"center",gap:6,
+                          background:"rgba(251,191,36,0.12)",border:"1px solid rgba(251,191,36,0.4)",
+                          borderRadius:6,padding:"4px 12px",marginBottom:16
+                        }}>
+                          <span style={{color:"#f59e0b",fontSize:12,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:2,fontWeight:700}}>
+                            ★ INFORME FINAL
+                          </span>
+                        </div>
+                      )}
 
                     {/* Navegador de registros */}
                     {selectedRecords.length > 1 && (
@@ -1167,6 +1248,7 @@ export default function ScoutingApp() {
                           ["Peso",currentRecord.peso?`${currentRecord.peso} kg`:"—"],
                           ["Jornada",currentRecord.jornada||"—"],
                           ["Liga",currentRecord.liga||"—"],
+                          ["Agente",currentRecord.agente||"—"],
                           ["Ocasiones en 11 ideal", selectedRecords.length],
                         ].map(([k,v])=>(
                           <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
@@ -1211,6 +1293,7 @@ export default function ScoutingApp() {
                       </div>
                     </div>
                   </div>
+                </div>
                 )}
               </div>
               );
