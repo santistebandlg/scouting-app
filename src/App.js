@@ -61,7 +61,7 @@ const POSITION_NAMES = {
   DCD:  "Delantero Derecho",
 };
 
-function RadarChart({ values, size = 220 }) {
+function RadarChart({ values, size = 220, color = "#4ade80" }) {
   const cx = size / 2, cy = size / 2, r = size * 0.38;
   const n = RADAR_CATEGORIES.length;
   const angles = RADAR_CATEGORIES.map((_, i) => (Math.PI * 2 * i) / n - Math.PI / 2);
@@ -77,7 +77,6 @@ function RadarChart({ values, size = 220 }) {
     angles.map((a) => [cx + r * ratio * Math.cos(a), cy + r * ratio * Math.sin(a)]);
 
   const dataPoints = pts(values);
-  const pathD = dataPoints.map((p, i) => `${i === 0 ? "M" : "L"}${p[0]},${p[1]}`).join(" ") + "Z";
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
@@ -99,9 +98,9 @@ function RadarChart({ values, size = 220 }) {
           stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
       ))}
       <polygon points={dataPoints.map((p) => p.join(",")).join(" ")}
-        fill="rgba(74,222,128,0.25)" stroke="#4ade80" strokeWidth="2" />
+        fill={`${color}40`} stroke={color} strokeWidth="2" />
       {dataPoints.map((p, i) => (
-        <circle key={i} cx={p[0]} cy={p[1]} r={4} fill="#4ade80" />
+        <circle key={i} cx={p[0]} cy={p[1]} r={4} fill={color} />
       ))}
       {angles.map((a, i) => {
         const lx = cx + (r + 22) * Math.cos(a);
@@ -1196,32 +1195,33 @@ export default function ScoutingApp() {
                         </div>
                       )}
 
-                    {/* Navegador de registros */}
+                      {/* Navegador de registros */}
                     {selectedRecords.length > 1 && (
                       <div style={{
                         display:"flex",alignItems:"center",justifyContent:"space-between",
                         marginBottom:20,padding:"10px 16px",
-                        background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.2)",
+                        background: currentRecord.informeFinal ? "rgba(251,191,36,0.06)" : "rgba(74,222,128,0.06)",
+                        border: `1px solid ${currentRecord.informeFinal ? "rgba(251,191,36,0.2)" : "rgba(74,222,128,0.2)"}`,
                         borderRadius:8
                       }}>
                         <button
                           onClick={()=>setSelectedRecordIndex(i=>Math.max(0,i-1))}
                           disabled={selectedRecordIndex===0}
-                          style={{background:"none",border:"none",color:selectedRecordIndex===0?"#475569":"#4ade80",fontSize:20,cursor:selectedRecordIndex===0?"default":"pointer"}}>
+                          style={{background:"none",border:"none",color:selectedRecordIndex===0?"#475569":currentRecord.informeFinal?"#f59e0b":"#4ade80",fontSize:20,cursor:selectedRecordIndex===0?"default":"pointer"}}>
                           ◀
                         </button>
                         <div style={{textAlign:"center"}}>
                           <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:13,letterSpacing:1}}>
                             REGISTRO {selectedRecordIndex+1} DE {selectedRecords.length}
                           </p>
-                          <p style={{color:"#4ade80",fontSize:12,marginTop:2}}>
+                          <p style={{color: currentRecord.informeFinal ? "#f59e0b" : "#4ade80",fontSize:12,marginTop:2}}>
                             {currentRecord.jornada||"—"} · {currentRecord.liga||"—"}
                           </p>
                         </div>
                         <button
                           onClick={()=>setSelectedRecordIndex(i=>Math.min(selectedRecords.length-1,i+1))}
                           disabled={selectedRecordIndex===selectedRecords.length-1}
-                          style={{background:"none",border:"none",color:selectedRecordIndex===selectedRecords.length-1?"#475569":"#4ade80",fontSize:20,cursor:selectedRecordIndex===selectedRecords.length-1?"default":"pointer"}}>
+                          style={{background:"none",border:"none",color:selectedRecordIndex===selectedRecords.length-1?"#475569":currentRecord.informeFinal?"#f59e0b":"#4ade80",fontSize:20,cursor:selectedRecordIndex===selectedRecords.length-1?"default":"pointer"}}>
                           ▶
                         </button>
                       </div>
@@ -1244,25 +1244,26 @@ export default function ScoutingApp() {
                           ["Posición",currentRecord.posicion||"—"],
                           ["Perfil",currentRecord.perfil||"—"],
                           ["Nacionalidad",currentRecord.nacionalidad||"—"],
-                          ["Fecha Nac.",currentRecord.fechaNac||"—"],
+                          ["Fecha Nac.",(currentRecord.fechaNac||"—").toString().substring(0,10)],
                           ["Edad",currentRecord.fechaNac?age(currentRecord.fechaNac)+" años":"—"],
                           ["Altura",currentRecord.altura?`${currentRecord.altura} cm`:"—"],
                           ["Peso",currentRecord.peso?`${currentRecord.peso} kg`:"—"],
                           ["Jornada",currentRecord.jornada||"—"],
                           ["Liga",currentRecord.liga||"—"],
                           ["Agente",currentRecord.agente||"—"],
-                          [currentRecord.informeFinal ? "Informes finales" : "Ocasiones en 11 ideal", selectedRecords.length],
+                          ["Ocasiones en 11 ideal", selectedRecords.filter(r=>!r.informeFinal).length],
+                          ["Informes finales", selectedRecords.filter(r=>r.informeFinal).length],
                         ].map(([k,v])=>(
                           <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
                             <span style={{
-                              color: k==="Ocasiones en 11 ideal" || k==="Informes finales"
-                                ? (currentRecord.informeFinal ? "#f59e0b" : "#4ade80")
+                              color: k==="Informes finales" ? "#f59e0b"
+                                : k==="Ocasiones en 11 ideal" ? "#4ade80"
                                 : "#475569",
                               fontSize:12,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1
                             }}>{k.toUpperCase()}</span>
                             <span style={{
-                              color: k==="Ocasiones en 11 ideal" || k==="Informes finales"
-                                ? (currentRecord.informeFinal ? "#f59e0b" : "#4ade80")
+                              color: k==="Informes finales" ? "#f59e0b"
+                                : k==="Ocasiones en 11 ideal" ? "#4ade80"
                                 : "#e2e8f0",
                               fontSize:13,
                               fontWeight: k==="Ocasiones en 11 ideal" || k==="Informes finales" ? 700 : 400
@@ -1272,7 +1273,7 @@ export default function ScoutingApp() {
                       </div>
                       {/* Col 2: clasificación */}
                       <div>
-                        <p style={sectionTitle}>Clasificación</p>
+                        <p style={{...sectionTitle, color: currentRecord.informeFinal ? "#f59e0b" : "#4ade80"}}>Clasificación</p>
                         {[
                           ["Categoría",currentRecord.categoria],
                           ["Proyección",currentRecord.proyeccion],
@@ -1281,24 +1282,28 @@ export default function ScoutingApp() {
                         ].map(([k,v])=>(
                           <div key={k} style={{marginBottom:14}}>
                             <p style={{color:"#475569",fontSize:11,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,marginBottom:4}}>{k.toUpperCase()}</p>
-                            <div style={{background:"rgba(74,222,128,0.08)",border:"1px solid rgba(74,222,128,0.2)",borderRadius:5,padding:"6px 12px",display:"inline-block"}}>
-                              <span style={{color:"#4ade80",fontSize:13,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>{v||"—"}</span>
+                            <div style={{
+                              background: currentRecord.informeFinal ? "rgba(251,191,36,0.08)" : "rgba(74,222,128,0.08)",
+                              border: `1px solid ${currentRecord.informeFinal ? "rgba(251,191,36,0.2)" : "rgba(74,222,128,0.2)"}`,
+                              borderRadius:5,padding:"6px 12px",display:"inline-block"
+                            }}>
+                              <span style={{color: currentRecord.informeFinal ? "#f59e0b" : "#4ade80",fontSize:13,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>{v||"—"}</span>
                             </div>
                           </div>
                         ))}
-                        <p style={{...sectionTitle,marginTop:20}}>Descripción</p>
+                        <p style={{...sectionTitle,marginTop:20, color: currentRecord.informeFinal ? "#f59e0b" : "#4ade80"}}>Descripción</p>
                         <p style={{color:"#94a3b8",fontSize:13,lineHeight:1.7}}>{currentRecord.descripcion||"Sin descripción."}</p>
                       </div>
                       {/* Col 3: radar */}
                       <div>
-                        <p style={sectionTitle}>Rendimiento</p>
+                        <p style={{...sectionTitle, color: currentRecord.informeFinal ? "#f59e0b" : "#4ade80"}}>Rendimiento</p>
                         <div style={{display:"flex",justifyContent:"center"}}>
-                          <RadarChart values={[currentRecord.tactica,currentRecord.tecnica,currentRecord.mental,currentRecord.fisico]}/>
+                          <RadarChart values={[currentRecord.tactica,currentRecord.tecnica,currentRecord.mental,currentRecord.fisico]} color={currentRecord.informeFinal ? "#f59e0b" : "#4ade80"}/>
                         </div>
                         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:12}}>
                           {[["Táctica",currentRecord.tactica],["Técnica",currentRecord.tecnica],["Mental",currentRecord.mental],["Físico",currentRecord.fisico]].map(([k,v])=>(
                             <div key={k} style={{background:"rgba(255,255,255,0.03)",borderRadius:6,padding:"8px 12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
-                              <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700}}>{v}</p>
+                              <p style={{color: currentRecord.informeFinal ? "#f59e0b" : "#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700}}>{v}</p>
                               <p style={{color:"#64748b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>{k.toUpperCase()}</p>
                             </div>
                           ))}
