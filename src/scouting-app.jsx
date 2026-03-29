@@ -225,7 +225,7 @@ export default function ScoutingApp() {
   const [perfilSearch, setPerfilSearch] = useState("");
   const [idealXI, setIdealXI] = useState({});
   const [assigningSlot, setAssigningSlot] = useState(null);
-  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbwPnYIySF4vOaLpZ9C-ZWuhua50oIcp-S2WW4xyEyMQJ-kGU6wvx79nOHqB-TUwQ4CTGg/exec");
+  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbxOxkiq1s8ZvrCUBn8q3Jhag7gmMLQNA11JIxqHypOn2Ta2cukJJT8jKw0gRw9CVfSx9Q/exec");
   const [sheetsConnected, setSheetsConnected] = useState(true);
   const [notification, setNotification] = useState(null);
   const [selectingPos, setSelectingPos] = useState(false);
@@ -236,7 +236,7 @@ export default function ScoutingApp() {
   useEffect(() => {
     const loadPlayers = async () => {
       try {
-        const url = "https://script.google.com/macros/s/AKfycbwPnYIySF4vOaLpZ9C-ZWuhua50oIcp-S2WW4xyEyMQJ-kGU6wvx79nOHqB-TUwQ4CTGg/exec?action=read";
+        const url = "https://script.google.com/macros/s/AKfycbxOxkiq1s8ZvrCUBn8q3Jhag7gmMLQNA11JIxqHypOn2Ta2cukJJT8jKw0gRw9CVfSx9Q/exec?action=read";
         const res = await fetch(url, { method: "GET" });
         const data = await res.json();
         if (data.success && data.players.length > 0) {
@@ -247,7 +247,7 @@ export default function ScoutingApp() {
               ...p,
               posicion: positionMap[p.posicion] || p.posicion,
               agente: p.agente || "",
-              informeFinal: p.scout === "Informe final",
+              informeFinal: p.informeFinal === true || p.informeFinal === "Sí" || p.informeFinal === true,
               id: Date.now() + i
             }));
           setPlayers(withIds);
@@ -476,6 +476,7 @@ export default function ScoutingApp() {
           jornada: String(player.jornada || ""),
           liga: String(player.liga || ""),
           agente: String(player.agente || ""),
+          informeFinal: String(player.informeFinal || false),
         });
         fetch(`${sheetsUrl}?${params.toString()}`, { method: "GET", mode: "no-cors" });
         console.log("URL enviada:", `${sheetsUrl}?${params.toString()}`);
