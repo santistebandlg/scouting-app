@@ -213,7 +213,105 @@ const defaultForm = {
   tactica:5, tecnica:5, mental:5, fisico:5, jornada:"", liga:"", agente:"", informeFinal:false
 };
 
+const USERS = {
+  "SantiagoTinajero":    "Santiago Tinajero",
+  "PepeHanan":           "Pepe Hanan",
+  "CristianFranco":      "Cristian Franco",
+  "NelsonRoa":           "Nelson Roa",
+  "ManuelGonzález":      "Manuel González",
+  "JoanCami":            "Joan Cami",
+  "SantiagoRiani":       "Santiago Riani",
+  "JacsonGabriel":       "Jacson Gabriel",
+  "AndrésVelasco":       "Andrés Velasco",
+  "GuillermoSantisteban":"Guillermo Santisteban",
+};
+
+function LoginScreen({ onLogin }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = () => {
+    setLoading(true);
+    setTimeout(() => {
+      const userName = USERS[password];
+      if (userName) {
+        onLogin(userName);
+      } else {
+        setError("Contraseña incorrecta. Intenta de nuevo.");
+        setLoading(false);
+      }
+    }, 600);
+  };
+
+  return (
+    <div style={{
+      minHeight:"100vh", background:"#0a0f0d",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      fontFamily:"'Barlow',sans-serif"
+    }}>
+      <div style={{
+        background:"#0d1a12", borderRadius:14,
+        border:"1px solid rgba(74,222,128,0.2)",
+        padding:"48px 40px", width:"100%", maxWidth:400,
+        textAlign:"center"
+      }}>
+        {/* Logo */}
+        <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
+          <img
+            src="https://a.espncdn.com/combiner/i?img=/i/teamlogos/soccer/500/229.png&cquality=40&h=144&scale=crop&w=144"
+            alt="Necaxa"
+            style={{width:72,height:72,objectFit:"contain"}}
+          />
+        </div>
+        <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700,letterSpacing:3,marginBottom:4}}>
+          SCOUT PLATFORM
+        </p>
+        <p style={{color:"#475569",fontSize:13,marginBottom:32}}>
+          Ingresa tu contraseña para continuar
+        </p>
+
+        <input
+          type="password"
+          placeholder="Contraseña"
+          value={password}
+          onChange={e=>{setPassword(e.target.value);setError("");}}
+          onKeyDown={e=>e.key==="Enter" && handleSubmit()}
+          style={{
+            width:"100%", background:"rgba(255,255,255,0.05)",
+            border:`1px solid ${error?"#ef4444":"rgba(255,255,255,0.12)"}`,
+            borderRadius:8, padding:"12px 16px", color:"#e2e8f0",
+            fontSize:15, fontFamily:"'Barlow',sans-serif",
+            outline:"none", boxSizing:"border-box", marginBottom:12,
+            textAlign:"center", letterSpacing:2
+          }}
+        />
+
+        {error && (
+          <p style={{color:"#ef4444",fontSize:12,marginBottom:12}}>{error}</p>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          disabled={loading || !password}
+          style={{
+            width:"100%", background:"linear-gradient(135deg,#16a34a,#15803d)",
+            border:"none", color:"#fff", padding:"12px",
+            borderRadius:8, fontFamily:"'Barlow Condensed',sans-serif",
+            fontSize:15, letterSpacing:2, cursor: loading||!password?"default":"pointer",
+            opacity: loading||!password ? 0.6 : 1, transition:"all 0.2s"
+          }}>
+          {loading ? "VERIFICANDO..." : "ENTRAR"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ScoutingApp() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState("");
+
   const [activeTab, setActiveTab] = useState("registrar");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [form, setForm] = useState(defaultForm);
@@ -512,6 +610,13 @@ export default function ScoutingApp() {
     borderBottom:"1px solid rgba(74,222,128,0.2)", paddingBottom:6
   };
 
+  const handleLogin = (userName) => {
+    setLoggedIn(true);
+    setCurrentUser(userName);
+  };
+
+  if (!loggedIn) return <LoginScreen onLogin={handleLogin} />;
+
   return (
     <>
       <style>{`
@@ -673,6 +778,11 @@ export default function ScoutingApp() {
               <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:3,marginTop:2}}>
                 {loading ? "CARGANDO JUGADORES..." : `${players.length} JUGADORES REGISTRADOS`}
               </p>
+              {currentUser && (
+                <p style={{color:"#475569",fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:1,marginTop:2}}>
+                  {currentUser}
+                </p>
+              )}
             </div>
             {/* Google Sheets connect */}
             <div style={{display:"flex",alignItems:"center",gap:10}}>
