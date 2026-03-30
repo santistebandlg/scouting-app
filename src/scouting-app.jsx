@@ -882,10 +882,10 @@ export default function ScoutingApp() {
                     </div>
                     <div>
                       <p style={{color: form.informeFinal ? "#f59e0b" : "#94a3b8", fontFamily:"'Barlow Condensed',sans-serif", fontSize:14, letterSpacing:1}}>
-                        INFORME FINAL
+                        {form.informeFinal ? "INFORME FINAL" : "11 IDEAL SEMANAL"}
                       </p>
                       <p style={{color:"#475569", fontSize:11, marginTop:2}}>
-                        {form.informeFinal ? "Se guardará en la pestaña Informe final" : "Se guardará en la pestaña del scout"}
+                        {form.informeFinal ? "Se guardará en la información de los informes finales" : "Se guardará en la información del 11 ideal"}
                       </p>
                     </div>
                   </div>
