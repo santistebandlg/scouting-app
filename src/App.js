@@ -322,7 +322,7 @@ export default function ScoutingApp() {
   const [perfilSearch, setPerfilSearch] = useState("");
   const [idealXI, setIdealXI] = useState({});
   const [assigningSlot, setAssigningSlot] = useState(null);
-  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbxOxkiq1s8ZvrCUBn8q3Jhag7gmMLQNA11JIxqHypOn2Ta2cukJJT8jKw0gRw9CVfSx9Q/exec");
+  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbwLTN0p4ypnJQpUBalfgP2jleEODvdFJB514w5gOkEsWr2lbJRfLZJBuL50idVAnXgY/exec");
   const [sheetsConnected, setSheetsConnected] = useState(true);
   const [notification, setNotification] = useState(null);
   const [selectingPos, setSelectingPos] = useState(false);
@@ -333,7 +333,7 @@ export default function ScoutingApp() {
   useEffect(() => {
     const loadPlayers = async () => {
       try {
-        const url = "https://script.google.com/macros/s/AKfycbxOxkiq1s8ZvrCUBn8q3Jhag7gmMLQNA11JIxqHypOn2Ta2cukJJT8jKw0gRw9CVfSx9Q/exec?action=read";
+        const url = "https://script.google.com/macros/s/AKfycbwLTN0p4ypnJQpUBalfgP2jleEODvdFJB514w5gOkEsWr2lbJRfLZJBuL50idVAnXgY/exec?action=read";
         const res = await fetch(url, { method: "GET" });
         const data = await res.json();
         if (data.success && data.players.length > 0) {
@@ -344,6 +344,7 @@ export default function ScoutingApp() {
               ...p,
               posicion: positionMap[p.posicion] || p.posicion,
               agente: p.agente || "",
+              fechaRegistro: p.fechaRegistro || "",
               informeFinal: p.informeFinal === true || p.informeFinal === "Sí" || p.informeFinal === true,
               id: Date.now() + i
             }));
@@ -385,7 +386,7 @@ export default function ScoutingApp() {
     doc.setFontSize(14);
     doc.text("11 IDEAL — SCOUT PLATFORM", 10, 12);
     doc.setFontSize(9);
-    doc.setTextColor(...textMuted);
+    doc.setTextColor(...textMain);
     const subtitle = [scout, jornada, liga].filter(Boolean).join("  ·  ");
     doc.text(subtitle, 10, 17);
     doc.setTextColor(...textMain);
@@ -521,7 +522,7 @@ export default function ScoutingApp() {
       doc.setTextColor(...textMuted); doc.text("NACIONALIDAD", c1, y+24);
       doc.setTextColor(...textMain); doc.text(p.nacionalidad||"—", c1+20, y+24);
       doc.setTextColor(...textMuted); doc.text("F. NAC.", c2, y+24);
-      doc.setTextColor(...textMain); doc.text(p.fechaNac||"—", c2+10, y+24);
+      doc.setTextColor(...textMain); doc.text((p.fechaNac||"—").toString().substring(0,10), c2+10, y+24);
 
       if (isCol2) y2 += 29; else y1 += 29;
     });
@@ -1168,7 +1169,7 @@ export default function ScoutingApp() {
                 grouped[key].push(p);
               });
 
-              // Filtrar por scout y búsqueda
+              // Filtrar por scout y búsqueda, ordenar del más reciente al más antiguo
               const uniquePlayers = Object.values(grouped).filter(records => {
                 const matchScout = !perfilFilterScout || records.some(r => r.scout === perfilFilterScout);
                 const matchSearch = !perfilSearch || records.some(r =>
@@ -1177,6 +1178,10 @@ export default function ScoutingApp() {
                   (r.posicion||"").toLowerCase().includes(perfilSearch.toLowerCase())
                 );
                 return matchScout && matchSearch;
+              }).sort((a, b) => {
+                const maxA = Math.max(...a.map(r => r.id || 0));
+                const maxB = Math.max(...b.map(r => r.id || 0));
+                return maxB - maxA;
               });
 
               // Registros del jugador seleccionado
@@ -1246,6 +1251,14 @@ export default function ScoutingApp() {
                             {records.find(r=>!r.informeFinal)?.scout || records[0].scout}
                           </p>
                         </div>
+                        {(() => {
+                          const lastRecord = [...records].sort((a,b)=>b.id-a.id)[0];
+                          return lastRecord?.fechaRegistro ? (
+                            <p style={{color:"#475569",fontSize:10,marginTop:3,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>
+                              Último registro: {(lastRecord.fechaRegistro||"").toString().substring(0,10)}
+                            </p>
+                          ) : null;
+                        })()}
                         <div style={{position:"absolute",top:10,right:10,display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end"}}>
                           {records.filter(r=>!r.informeFinal).length > 0 && (
                             <div style={{
@@ -1362,6 +1375,7 @@ export default function ScoutingApp() {
                           ["Jornada",currentRecord.jornada||"—"],
                           ["Liga",currentRecord.liga||"—"],
                           ["Agente",currentRecord.agente||"—"],
+                          ["Fecha de registro",(currentRecord.fechaRegistro||"—").toString().substring(0,10)],
                           ["Ocasiones en 11 ideal", selectedRecords.filter(r=>!r.informeFinal).length],
                           ["Informes finales", selectedRecords.filter(r=>r.informeFinal).length],
                         ].map(([k,v])=>(
