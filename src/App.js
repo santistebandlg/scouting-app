@@ -1131,7 +1131,7 @@ export default function ScoutingApp() {
                             {[
                               ["Equipo", p.equipo||"—"],
                               ["Altura", p.altura?`${p.altura} cm`:"—"],
-                              ["Fecha Nac.", p.fechaNac||"—"],
+                              ["Fecha Nac.", (p.fechaNac||"—").toString().substring(0,10)],
                               ["Nacionalidad", p.nacionalidad||"—"],
                             ].map(([k,v])=>(
                               <div key={k}>
