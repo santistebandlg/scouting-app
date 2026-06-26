@@ -210,7 +210,7 @@ const defaultForm = {
   nombre:"", apellido:"", scout:"", posicion:"", equipo:"",
   perfil:"", fechaNac:"", nacionalidad:"", altura:"", peso:"",
   categoria:"", proyeccion:"", rango:"", transferencia:"", descripcion:"",
-  tactica:5, tecnica:5, mental:5, fisico:5, jornada:"", liga:"", agente:"", informeFinal:false
+  tactica:5, tecnica:5, mental:5, fisico:5, jornada:"", liga:"", agente:"", informeFinal:false, equipoPrestamo:""
 };
 
 const USERS = {
@@ -320,9 +320,11 @@ export default function ScoutingApp() {
   const [selectedRecordIndex, setSelectedRecordIndex] = useState(0);
   const [perfilFilterScout, setPerfilFilterScout] = useState("");
   const [perfilSearch, setPerfilSearch] = useState("");
+  const [showEquipoSuggestions, setShowEquipoSuggestions] = useState(false);
+  const [showEquipoPrestSuggestions, setShowEquipoPrestSuggestions] = useState(false);
   const [idealXI, setIdealXI] = useState({});
   const [assigningSlot, setAssigningSlot] = useState(null);
-  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbwLTN0p4ypnJQpUBalfgP2jleEODvdFJB514w5gOkEsWr2lbJRfLZJBuL50idVAnXgY/exec");
+  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbwE7omFH1UYdzEBXyA4SsTYuSkyUFydcbT4a_F7MXO37sU1OiD5K1Bn2wI-rJAZQFRiJg/exec");
   const [sheetsConnected, setSheetsConnected] = useState(true);
   const [notification, setNotification] = useState(null);
   const [selectingPos, setSelectingPos] = useState(false);
@@ -333,7 +335,7 @@ export default function ScoutingApp() {
   useEffect(() => {
     const loadPlayers = async () => {
       try {
-        const url = "https://script.google.com/macros/s/AKfycbwLTN0p4ypnJQpUBalfgP2jleEODvdFJB514w5gOkEsWr2lbJRfLZJBuL50idVAnXgY/exec?action=read";
+        const url = "https://script.google.com/macros/s/AKfycbwE7omFH1UYdzEBXyA4SsTYuSkyUFydcbT4a_F7MXO37sU1OiD5K1Bn2wI-rJAZQFRiJg/exec?action=read";
         const res = await fetch(url, { method: "GET" });
         const data = await res.json();
         if (data.success && data.players.length > 0) {
@@ -344,6 +346,7 @@ export default function ScoutingApp() {
               ...p,
               posicion: positionMap[p.posicion] || p.posicion,
               agente: p.agente || "",
+              equipoPrestamo: p.equipoPrestamo || "",
               fechaRegistro: p.fechaRegistro || "",
               informeFinal: p.informeFinal === true || p.informeFinal === "Sí" || p.informeFinal === true,
               id: Date.now() + i
@@ -575,6 +578,7 @@ export default function ScoutingApp() {
           liga: String(player.liga || ""),
           agente: String(player.agente || ""),
           informeFinal: String(player.informeFinal || false),
+          equipoPrestamo: String(player.equipoPrestamo || ""),
         });
         fetch(`${sheetsUrl}?${params.toString()}`, { method: "GET", mode: "no-cors" });
         console.log("URL enviada:", `${sheetsUrl}?${params.toString()}`);
@@ -838,12 +842,91 @@ export default function ScoutingApp() {
                     </select>
                   </div>
 
-                  <div style={{marginBottom:12}}>
+                  <div style={{marginBottom:12, position:"relative"}}>
                     <label style={labelStyle}>Equipo</label>
-                    <input style={inputStyle} value={form.equipo} onChange={e=>setF("equipo",e.target.value)} placeholder="Club actual"/>
+                    <input
+                      style={inputStyle}
+                      value={form.equipo}
+                      onChange={e=>{setF("equipo",e.target.value);setShowEquipoSuggestions(true);}}
+                      onFocus={()=>setShowEquipoSuggestions(true)}
+                      onBlur={()=>setTimeout(()=>setShowEquipoSuggestions(false),150)}
+                      placeholder="Club actual"
+                      autoComplete="off"
+                    />
+                    {showEquipoSuggestions && form.equipo.length > 0 && (() => {
+                      const equipos = [...new Set(players.map(p=>p.equipo).filter(Boolean))].sort();
+                      const filtered = equipos.filter(e=>e.toLowerCase().includes(form.equipo.toLowerCase()) && e.toLowerCase()!==form.equipo.toLowerCase());
+                      if (filtered.length === 0) return null;
+                      return (
+                        <div style={{
+                          position:"absolute", top:"100%", left:0, right:0, zIndex:100,
+                          background:"#111c16", border:"1px solid rgba(74,222,128,0.3)",
+                          borderRadius:6, maxHeight:180, overflowY:"auto",
+                          boxShadow:"0 8px 24px rgba(0,0,0,0.5)"
+                        }}>
+                          {filtered.map(e=>(
+                            <div key={e}
+                              onMouseDown={()=>{setF("equipo",e);setShowEquipoSuggestions(false);}}
+                              style={{
+                                padding:"9px 14px", cursor:"pointer",
+                                color:"#e2e8f0", fontSize:13,
+                                fontFamily:"'Barlow',sans-serif",
+                                borderBottom:"1px solid rgba(255,255,255,0.05)",
+                                transition:"background 0.1s"
+                              }}
+                              onMouseEnter={e=>e.currentTarget.style.background="rgba(74,222,128,0.1)"}
+                              onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                            >
+                              {e}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  <p style={sectionTitle}>Posición en Cancha</p>
+                  <div style={{marginBottom:12, position:"relative"}}>
+                    <label style={labelStyle}>Equipo de préstamo</label>
+                    <input
+                      style={inputStyle}
+                      value={form.equipoPrestamo}
+                      onChange={e=>{setF("equipoPrestamo",e.target.value);setShowEquipoSuggestions(false);}}
+                      onFocus={()=>setShowEquipoPrestSuggestions(true)}
+                      onBlur={()=>setTimeout(()=>setShowEquipoPrestSuggestions(false),150)}
+                      placeholder="Solo si está prestado"
+                      autoComplete="off"
+                    />
+                    {showEquipoPrestSuggestions && form.equipoPrestamo.length > 0 && (() => {
+                      const equipos = [...new Set(players.map(p=>p.equipo).filter(Boolean))].sort();
+                      const filtered = equipos.filter(e=>e.toLowerCase().includes(form.equipoPrestamo.toLowerCase()) && e.toLowerCase()!==form.equipoPrestamo.toLowerCase());
+                      if (filtered.length === 0) return null;
+                      return (
+                        <div style={{
+                          position:"absolute", top:"100%", left:0, right:0, zIndex:100,
+                          background:"#111c16", border:"1px solid rgba(74,222,128,0.3)",
+                          borderRadius:6, maxHeight:180, overflowY:"auto",
+                          boxShadow:"0 8px 24px rgba(0,0,0,0.5)"
+                        }}>
+                          {filtered.map(e=>(
+                            <div key={e}
+                              onMouseDown={()=>{setF("equipoPrestamo",e);setShowEquipoPrestSuggestions(false);}}
+                              style={{
+                                padding:"9px 14px", cursor:"pointer",
+                                color:"#e2e8f0", fontSize:13,
+                                fontFamily:"'Barlow',sans-serif",
+                                borderBottom:"1px solid rgba(255,255,255,0.05)",
+                                transition:"background 0.1s"
+                              }}
+                              onMouseEnter={e=>e.currentTarget.style.background="rgba(74,222,128,0.1)"}
+                              onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                            >
+                              {e}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
                   <div style={{width:"100%",maxWidth:300,margin:"0 auto 16px"}}>
                     <FootballField
                       positions={POSITIONS_FIELD}
@@ -1245,7 +1328,9 @@ export default function ScoutingApp() {
                           transition:"all 0.15s", position:"relative"
                         }}>
                         <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:17,fontWeight:700}}>{p.nombre} {p.apellido}</p>
-                        <p style={{color:"#64748b",fontSize:12,marginTop:3}}>{p.posicion} · {p.equipo || "—"}</p>
+                        <p style={{color:"#64748b",fontSize:12,marginTop:3}}>
+                          {p.posicion} · {p.equipoPrestamo ? `${p.equipoPrestamo} (préstamo de ${p.equipo})` : p.equipo || "—"}
+                        </p>
                         <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}>
                           <p style={{color:"#4ade80",fontSize:11,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>
                             {records.find(r=>!r.informeFinal)?.scout || records[0].scout}
@@ -1365,6 +1450,7 @@ export default function ScoutingApp() {
                         {[
                           ["Scout",currentRecord.scout],
                           ["Equipo",currentRecord.equipo||"—"],
+                          ["Equipo de préstamo",currentRecord.equipoPrestamo||"—"],
                           ["Posición",currentRecord.posicion||"—"],
                           ["Perfil",currentRecord.perfil||"—"],
                           ["Nacionalidad",currentRecord.nacionalidad||"—"],
