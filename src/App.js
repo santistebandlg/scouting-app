@@ -116,6 +116,47 @@ function RadarChart({ values, size = 220, color = "#4ade80" }) {
   );
 }
 
+function ShieldImage({ equipo, size = 32 }) {
+  const [errorCount, setErrorCount] = useState(0);
+  if (!equipo) return null;
+
+  const equipoClean = (equipo||"").trim();
+  if (!equipoClean) return null;
+
+  // Variantes a intentar en orden
+  const variants = [
+    equipoClean,
+    equipoClean.normalize("NFD").replace(/[\u0300-\u036f]/g,""), // sin acentos
+  ].filter((v,i,arr) => arr.indexOf(v)===i); // únicas
+
+  if (errorCount >= variants.length) return null;
+
+  return (
+    <img
+      src={`/escudos/${variants[errorCount]}.png`}
+      alt={equipoClean}
+      style={{width:size, height:size, objectFit:"contain", flexShrink:0}}
+      onError={()=>setErrorCount(c=>c+1)}
+    />
+  );
+}
+
+function FieldShield({ equipo, posLabel }) {
+  const equipoClean = (equipo||"").trim();
+  if (!equipoClean) return (
+    <span style={{color:"rgba(255,255,255,0.7)",fontSize:7,fontWeight:700,fontFamily:"sans-serif",textAlign:"center"}}>{posLabel}</span>
+  );
+  return (
+    <img
+      src={`/escudos/${equipoClean}.png`}
+      alt={equipoClean}
+      width={32}
+      height={32}
+      style={{objectFit:"contain"}}
+    />
+  );
+}
+
 function FootballField({ positions, assignments, playerData={}, onSlotClick, interactive = false }) {
   return (
     <div style={{
@@ -140,7 +181,7 @@ function FootballField({ positions, assignments, playerData={}, onSlotClick, int
       {/* Player positions */}
       {positions.map((pos) => {
         const playerName = assignments?.[pos.id];
-        const pData = playerData?.[pos.id];
+        const pData = playerData?.[pos.id] || playerData?.[(pos.id||"").trim()];
         return (
           <div key={pos.id}
             onClick={() => interactive && onSlotClick && onSlotClick(pos.id)}
@@ -152,21 +193,18 @@ function FootballField({ positions, assignments, playerData={}, onSlotClick, int
               zIndex:2, textAlign:"center"
             }}>
             <div style={{
-              width:34, height:34, borderRadius:"50%",
-              background: playerName ? "linear-gradient(135deg,#ef4444,#b91c1c)" : "rgba(0,0,0,0.5)",
-              border: playerName ? "2px solid #fca5a5" : "2px dashed rgba(255,255,255,0.4)",
+              width:36, height:36, borderRadius:"50%",
+              background: playerName ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.5)",
+              border: playerName ? "none" : "2px dashed rgba(255,255,255,0.4)",
               display:"flex", alignItems:"center", justifyContent:"center",
-              backdropFilter:"blur(4px)",
-              boxShadow: playerName ? "0 0 12px rgba(239,68,68,0.6)" : "none",
-              transition:"all 0.2s"
+              backdropFilter: playerName ? "none" : "blur(4px)",
+              transition:"all 0.2s", overflow:"hidden"
             }}>
-              {playerName ? (
-                <span style={{color:"#fff",fontSize:7,fontWeight:700,fontFamily:"'Barlow Condensed',sans-serif",lineHeight:1,textAlign:"center",padding:2}}>
-                  {pData?.posicion || pos.label}
-                </span>
-              ) : (
+              {playerName && pData ? (
+                <FieldShield equipo={(pData.equipoPrestamo||pData.equipo||"").trim()} posLabel={pos.label}/>
+              ) : !playerName ? (
                 <span style={{color:"rgba(255,255,255,0.5)",fontSize:9,fontFamily:"'Barlow Condensed',sans-serif"}}>{pos.label}</span>
-              )}
+              ) : null}
             </div>
             {playerName && (
               <div style={{
@@ -1099,11 +1137,14 @@ export default function ScoutingApp() {
                 (!xiFilterJornada || p.jornada===xiFilterJornada) &&
                 (!xiFilterLiga || p.liga===xiFilterLiga)
               );
-              // Build assignments from filtered players: posicion -> "Nombre Apellido"
+              // Build assignments from filtered players: posicion -> player data
               const autoAssignments = {};
+              const autoPlayerData = {};
               filteredPlayers.forEach(p => {
-                if (p.posicion && !autoAssignments[p.posicion]) {
-                  autoAssignments[p.posicion] = `${p.nombre} ${p.apellido}`;
+                const pos = (p.posicion||"").trim();
+                if (pos && !autoAssignments[pos]) {
+                  autoAssignments[pos] = `${p.nombre} ${p.apellido}`;
+                  autoPlayerData[pos] = p;
                 }
               });
               return (
@@ -1173,11 +1214,7 @@ export default function ScoutingApp() {
                       <FootballField
                         positions={POSITIONS_FIELD}
                         assignments={autoAssignments}
-                        playerData={Object.fromEntries(
-                          filteredPlayers
-                            .filter(p=>p.posicion)
-                            .map(p=>[p.posicion, p])
-                        )}
+                        playerData={autoPlayerData}
                         interactive={false}
                       />
                     </div>
@@ -1192,13 +1229,26 @@ export default function ScoutingApp() {
                         }}>
                           {/* Nombre y posición */}
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-                            <div>
-                              <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:700,letterSpacing:1}}>
-                                {p.nombre} {p.apellido}
-                              </p>
+                            <div style={{display:"flex",alignItems:"center",gap:10}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6}}>
+                              {p.equipoPrestamo ? (
+                                <>
+                                  <ShieldImage equipo={p.equipo.trim()} size={28}/>
+                                  <span style={{color:"#475569",fontSize:12}}>›</span>
+                                  <ShieldImage equipo={p.equipoPrestamo.trim()} size={28}/>
+                                </>
+                              ) : (
+                                <ShieldImage equipo={(p.equipo||"").trim()} size={32}/>
+                              )}
+                            </div>
+                              <div>
+                                <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:700,letterSpacing:1}}>
+                                  {p.nombre} {p.apellido}
+                                </p>
                               <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:12,letterSpacing:2,marginTop:2}}>
                                 {POSITION_NAMES[p.posicion] || p.posicion || "—"}
                               </p>
+                              </div>
                             </div>
                             <div style={{
                               background:"rgba(74,222,128,0.1)",border:"1px solid rgba(74,222,128,0.25)",
