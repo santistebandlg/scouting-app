@@ -120,14 +120,13 @@ function ShieldImage({ equipo, size = 32 }) {
   const [errorCount, setErrorCount] = useState(0);
   if (!equipo) return null;
 
-  const equipoClean = (equipo||"").trim();
+  const equipoClean = (equipo||"").trim().normalize("NFC");
   if (!equipoClean) return null;
 
-  // Variantes a intentar en orden
   const variants = [
     equipoClean,
-    equipoClean.normalize("NFD").replace(/[\u0300-\u036f]/g,""), // sin acentos
-  ].filter((v,i,arr) => arr.indexOf(v)===i); // únicas
+    equipoClean.normalize("NFD").replace(/[\u0300-\u036f]/g,""),
+  ].filter((v,i,arr) => arr.indexOf(v)===i);
 
   if (errorCount >= variants.length) return null;
 
@@ -142,7 +141,7 @@ function ShieldImage({ equipo, size = 32 }) {
 }
 
 function FieldShield({ equipo, posLabel }) {
-  const equipoClean = (equipo||"").trim();
+  const equipoClean = (equipo||"").trim().normalize("NFC");
   if (!equipoClean) return (
     <span style={{color:"rgba(255,255,255,0.7)",fontSize:7,fontWeight:700,fontFamily:"sans-serif",textAlign:"center"}}>{posLabel}</span>
   );
