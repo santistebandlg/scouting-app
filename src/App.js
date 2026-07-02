@@ -141,17 +141,26 @@ function ShieldImage({ equipo, size = 32 }) {
 }
 
 function FieldShield({ equipo, posLabel }) {
+  const [errorCount, setErrorCount] = useState(0);
   const equipoClean = (equipo||"").trim().normalize("NFC");
-  if (!equipoClean) return (
+
+  if (!equipoClean || errorCount >= 2) return (
     <span style={{color:"rgba(255,255,255,0.7)",fontSize:7,fontWeight:700,fontFamily:"sans-serif",textAlign:"center"}}>{posLabel}</span>
   );
+
+  const variants = [
+    equipoClean,
+    equipoClean.normalize("NFD").replace(/[\u0300-\u036f]/g,""),
+  ];
+
   return (
     <img
-      src={`/escudos/${equipoClean}.png`}
+      src={`/escudos/${variants[errorCount]}.png`}
       alt={equipoClean}
       width={32}
       height={32}
       style={{objectFit:"contain"}}
+      onError={()=>setErrorCount(c=>c+1)}
     />
   );
 }
