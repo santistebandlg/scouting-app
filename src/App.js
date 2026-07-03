@@ -413,7 +413,42 @@ export default function ScoutingApp() {
   const xiRef = useRef(null);
   const perfilRef = useRef(null);
 
-  const exportXIToPDF = (filteredPlayers, scout, jornada, liga) => {
+  const loadImageForPDF = (equipo) => {
+    return new Promise((resolve) => {
+      if (!equipo) return resolve(null);
+      const equipoClean = equipo.trim().normalize("NFC");
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        try {
+          resolve({
+            data: canvas.toDataURL("image/png"),
+            ratio: img.width / img.height
+          });
+        } catch { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = `/escudos/${equipoClean}.png`;
+    });
+  };
+
+  // Helper para agregar logo con proporciones correctas
+  const addLogoToPDF = (doc, logo, cx, cy, maxSize) => {
+    if (!logo) return;
+    const ratio = logo.ratio || 1;
+    let w, h;
+    if (ratio >= 1) { w = maxSize; h = maxSize / ratio; }
+    else { h = maxSize; w = maxSize * ratio; }
+    doc.addImage(logo.data, "PNG", cx - w/2, cy - h/2, w, h);
+  };
+
+  const exportXIToPDF = async (filteredPlayers, scout, jornada, liga) => {
+    showNotif("Generando PDF...");
     const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
     const W = 297, H = 210;
     const green = [74, 222, 128];
@@ -422,6 +457,19 @@ export default function ScoutingApp() {
     const cardBg = [17, 28, 22];
     const textMain = [226, 232, 240];
     const textMuted = [100, 116, 139];
+
+    // Precargar todos los logos
+    const posMap = {};
+    filteredPlayers.forEach(p => { if(p.posicion && !posMap[p.posicion]) posMap[p.posicion] = p; });
+    const fieldPlayers = Object.values(posMap);
+
+    const logoCache = {};
+    await Promise.all(fieldPlayers.map(async p => {
+      const eq = (p.equipoPrestamo || p.equipo || "").trim();
+      if (eq && !logoCache[eq]) {
+        logoCache[eq] = await loadImageForPDF(eq);
+      }
+    }));
 
     // Fondo
     doc.setFillColor(...bg);
@@ -444,13 +492,6 @@ export default function ScoutingApp() {
 
     // Cancha
     const fieldX = 8, fieldY = 22, fieldW = 100, fieldH = 180;
-
-    // Construir posMap aquí para usarlo tanto en cancha como en lista
-    const posMap = {};
-    filteredPlayers.forEach(p => { if(p.posicion && !posMap[p.posicion]) posMap[p.posicion] = p; });
-    const fieldPlayers = Object.values(posMap);
-
-    // Cancha con franjas
     doc.setFillColor(21, 128, 61);
     doc.roundedRect(fieldX, fieldY, fieldW, fieldH, 3, 3, "F");
 
@@ -483,16 +524,18 @@ export default function ScoutingApp() {
       const cx = fieldX + (pos.x/100)*fieldW;
       const cy = fieldY + (pos.y/100)*fieldH;
       if (p) {
-        // Círculo rojo con gradiente simulado
-        doc.setFillColor(239, 68, 68);
-        doc.circle(cx, cy, 3.8, "F");
-        doc.setDrawColor(252, 165, 165);
-        doc.setLineWidth(0.5);
-        doc.circle(cx, cy, 3.8);
-        doc.setTextColor(255,255,255);
-        doc.setFont("helvetica","bold");
-        doc.setFontSize(4.5);
-        doc.text(pos.label, cx, cy+0.8, {align:"center"});
+        const eq = (p.equipoPrestamo || p.equipo || "").trim();
+        const logo = logoCache[eq];
+        if (logo) {
+          addLogoToPDF(doc, logo, cx, cy, 10);
+        } else {
+          doc.setFillColor(239, 68, 68);
+          doc.circle(cx, cy, 3.8, "F");
+          doc.setTextColor(255,255,255);
+          doc.setFont("helvetica","bold");
+          doc.setFontSize(4.5);
+          doc.text(pos.label, cx, cy+0.8, {align:"center"});
+        }
         // Etiqueta nombre
         doc.setFillColor(0,0,0);
         const name = `${p.nombre} ${p.apellido}`;
@@ -539,6 +582,10 @@ export default function ScoutingApp() {
       doc.setLineWidth(0.15);
       doc.roundedRect(x, y, colW, 26, 2, 2);
 
+      // Logo equipo (quitar del top)
+      const eqCard = (p.equipoPrestamo || p.equipo || "").trim();
+      const logoCard = logoCache[eqCard];
+
       // Nombre
       doc.setTextColor(...green);
       doc.setFont("helvetica","bold");
@@ -559,6 +606,11 @@ export default function ScoutingApp() {
         doc.setTextColor(...green);
         doc.setFontSize(6);
         doc.text(p.proyeccion, x+colW-3-bw/2, y+5.5, {align:"center"});
+      }
+
+      // Logo debajo del badge de proyección
+      if (logoCard) {
+        addLogoToPDF(doc, logoCard, x+colW-7, y+12, 9);
       }
 
       // Datos
