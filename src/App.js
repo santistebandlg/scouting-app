@@ -370,7 +370,7 @@ export default function ScoutingApp() {
   const [showEquipoPrestSuggestions, setShowEquipoPrestSuggestions] = useState(false);
   const [idealXI, setIdealXI] = useState({});
   const [assigningSlot, setAssigningSlot] = useState(null);
-  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbwE7omFH1UYdzEBXyA4SsTYuSkyUFydcbT4a_F7MXO37sU1OiD5K1Bn2wI-rJAZQFRiJg/exec");
+  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbztth_IJJDQRaLjYI2r2xISNczMfAwkrWStlzUNZpYVgbkinG19daOQoimTwXh_Dl9XiA/exec");
   const [sheetsConnected, setSheetsConnected] = useState(true);
   const [notification, setNotification] = useState(null);
   const [selectingPos, setSelectingPos] = useState(false);
@@ -381,7 +381,7 @@ export default function ScoutingApp() {
   useEffect(() => {
     const loadPlayers = async () => {
       try {
-        const url = "https://script.google.com/macros/s/AKfycbwE7omFH1UYdzEBXyA4SsTYuSkyUFydcbT4a_F7MXO37sU1OiD5K1Bn2wI-rJAZQFRiJg/exec?action=read";
+        const url = "https://script.google.com/macros/s/AKfycbztth_IJJDQRaLjYI2r2xISNczMfAwkrWStlzUNZpYVgbkinG19daOQoimTwXh_Dl9XiA/exec?action=read";
         const res = await fetch(url, { method: "GET" });
         const data = await res.json();
         if (data.success && data.players.length > 0) {
@@ -410,6 +410,301 @@ export default function ScoutingApp() {
   const [xiFilterScout, setXiFilterScout] = useState("");
   const [xiFilterJornada, setXiFilterJornada] = useState("");
   const [xiFilterLiga, setXiFilterLiga] = useState("");
+  const [listas, setListas] = useState([]);
+  const [listaActiva, setListaActiva] = useState(null);
+  const [showNuevaLista, setShowNuevaLista] = useState(false);
+  const [showNuevaLista2, setShowNuevaLista2] = useState(false);
+  const [nuevaListaNombre, setNuevaListaNombre] = useState("");
+  const [showAddJugador, setShowAddJugador] = useState(false);
+  const [favSearch, setFavSearch] = useState("");
+  const [favPosFilter, setFavPosFilter] = useState("");
+  const [favEquipoFilter, setFavEquipoFilter] = useState("");
+  const [showRegForm, setShowRegForm] = useState(false);
+  const [listaNombre, setListaNombre] = useState("");
+  const [selectedForList, setSelectedForList] = useState([]);
+  const [shortList, setShortList] = useState([]);
+  const [favForm, setFavForm] = useState({
+    nombre:"", apellido:"", equipo:"", equipoPrestamo:"",
+    fechaNac:"", nacionalidad:"", finContrato:"", finContratoMes:"", posicion:""
+  });
+
+  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbztth_IJJDQRaLjYI2r2xISNczMfAwkrWStlzUNZpYVgbkinG19daOQoimTwXh_Dl9XiA/exec";
+
+  useEffect(() => {
+    const loadFavoritos = async () => {
+      try {
+        const res = await fetch(`${FAVORITOS_URL}?action=readFavoritos`);
+        const data = await res.json();
+        if (data.success) setListas(data.listas || []);
+      } catch(err) { console.error("Error cargando favoritos:", err); }
+    };
+    loadFavoritos();
+  }, []);
+
+  const saveLista = async (lista) => {
+    try {
+      const params = new URLSearchParams({
+        action: "saveFavorito",
+        id: lista.id,
+        nombre: lista.nombre,
+        fecha: lista.fecha,
+        jugadores: JSON.stringify(lista.jugadores)
+      });
+      fetch(`${FAVORITOS_URL}?${params.toString()}`, { method:"GET", mode:"no-cors" });
+    } catch(err) { console.error("Error guardando favorito:", err); }
+  };
+
+  const crearLista = () => {
+    if (!nuevaListaNombre.trim()) return;
+    const nueva = {
+      id: Date.now().toString(),
+      nombre: nuevaListaNombre.trim(),
+      fecha: new Date().toLocaleDateString("es-ES"),
+      jugadores: []
+    };
+    const nuevasListas = [...listas, nueva];
+    setListas(nuevasListas);
+    setListaActiva(nueva);
+    setNuevaListaNombre("");
+    setShowNuevaLista(false);
+    saveLista(nueva);
+  };
+
+  const agregarJugadorFav = () => {
+    if (!favForm.nombre || !listaActiva) return;
+    const jugador = { ...favForm, id: Date.now().toString() };
+    const listaActualizada = { ...listaActiva, jugadores: [...listaActiva.jugadores, jugador] };
+    setListaActiva(listaActualizada);
+    setListas(listas.map(l => l.id === listaActiva.id ? listaActualizada : l));
+    saveLista(listaActualizada);
+    setFavForm({ nombre:"", apellido:"", equipo:"", equipoPrestamo:"", fechaNac:"", nacionalidad:"", finContrato:"", finContratoMes:"" });
+    setShowAddJugador(false);
+    showNotif("Jugador agregado a la lista.");
+  };
+
+  const eliminarJugadorFav = (jugadorId) => {
+    const listaActualizada = { ...listaActiva, jugadores: listaActiva.jugadores.filter(j => j.id !== jugadorId) };
+    setListaActiva(listaActualizada);
+    setListas(listas.map(l => l.id === listaActiva.id ? listaActualizada : l));
+    saveLista(listaActualizada);
+  };
+
+  const getContratoColor = (finContrato, finContratoMes) => {
+    if (!finContrato) return null;
+    const now = new Date();
+    const year = parseInt(finContrato);
+    const month = finContratoMes === "Junio" ? 5 : 11;
+    const fecha = new Date(year, month, 30);
+    const diffMs = fecha - now;
+    const diffMeses = diffMs / (1000 * 60 * 60 * 24 * 30);
+    if (diffMeses < 0) return "#ef4444"; // vencido
+    if (diffMeses <= 6) return "#f59e0b"; // próximo a vencer
+    return "#4ade80"; // OK
+  };
+
+  const getNacionalidadCode = (nacionalidad) => {
+    const map = {
+      "España":"es","México":"mx","Argentina":"ar","Brasil":"br","Colombia":"co",
+      "Uruguay":"uy","Chile":"cl","Perú":"pe","Ecuador":"ec","Paraguay":"py",
+      "Bolivia":"bo","Venezuela":"ve","Francia":"fr","Alemania":"de","Italia":"it",
+      "Portugal":"pt","Inglaterra":"gb-eng","Holanda":"nl","Bélgica":"be","Croacia":"hr",
+      "Serbia":"rs","Polonia":"pl","Suiza":"ch","Austria":"at","Dinamarca":"dk",
+      "Suecia":"se","Noruega":"no","Escocia":"gb-sct","Estados Unidos":"us",
+      "Canadá":"ca","Costa Rica":"cr","Honduras":"hn","Guatemala":"gt","Panamá":"pa",
+      "Jamaica":"jm","Trinidad y Tobago":"tt","Senegal":"sn","Nigeria":"ng",
+      "Ghana":"gh","Costa de Marfil":"ci","Camerún":"cm","Marruecos":"ma",
+      "Argelia":"dz","Egipto":"eg","Sudáfrica":"za","Japón":"jp","Corea del Sur":"kr",
+      "Australia":"au","China":"cn","Turquía":"tr","Grecia":"gr","Rumania":"ro",
+      "Hungría":"hu","República Checa":"cz","Eslovaquia":"sk","Ucrania":"ua",
+      "Rusia":"ru","Georgia":"ge","Armenia":"am","Israel":"il","Arabia Saudita":"sa",
+      "Irán":"ir","Irak":"iq","Haití":"ht","República Dominicana":"do",
+      "Cuba":"cu","Puerto Rico":"pr","El Salvador":"sv","Nicaragua":"ni",
+    };
+    return map[nacionalidad] || "un";
+  };
+
+  const exportFavoritosPDF = async (lista, shortListIds=[]) => {
+    showNotif("Generando PDF...");
+    const doc = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
+    const W = 210, H = 297;
+    const jugadores = lista.jugadores || [];
+    const shortListJugadores = jugadores.filter(j=>shortListIds.includes(j.id));
+    const mainJugadores = jugadores.filter(j=>!shortListIds.includes(j.id));
+
+    // Precargar logos
+    const logoCache = {};
+    await Promise.all(jugadores.map(async j => {
+      const eq = (j.equipoPrestamo||j.equipo||"").trim();
+      if (eq && !logoCache[eq]) logoCache[eq] = await loadImageForPDF(eq);
+      const eq2 = (j.equipo||"").trim();
+      if (eq2 && !logoCache[eq2]) logoCache[eq2] = await loadImageForPDF(eq2);
+    }));
+
+    // Fondo blanco
+    doc.setFillColor(255,255,255);
+    doc.rect(0,0,W,H,"F");
+
+    // Logo Necaxa centrado
+    const necaxaLogo = logoCache["Necaxa"] || await loadImageForPDF("Necaxa");
+    if (necaxaLogo) addLogoToPDF(doc, necaxaLogo, W/2, 16, 18);
+
+    // Header texto
+    doc.setTextColor(0,0,0);
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(8);
+    doc.text("DEPARTAMENTO DE INTELIGENCIA DEPORTIVA", W/2, 28, {align:"center"});
+    doc.text("SCOUTING", W/2, 33, {align:"center"});
+    doc.text("CLUB NECAXA", W/2, 38, {align:"center"});
+    doc.setFontSize(10);
+    doc.text(lista.nombre.toUpperCase(), W/2, 44, {align:"center"});
+
+    // Leyenda contratos arriba derecha
+    doc.setFontSize(6.5);
+    doc.setTextColor(220,0,0);
+    doc.text("TERMINO DE CONTRATO JUN", W-7, 10, {align:"right"});
+    doc.setTextColor(0,80,180);
+    doc.text("TERMINO DE CONTRATO DIC", W-7, 15, {align:"right"});
+
+    // Línea separadora
+    doc.setDrawColor(0,0,0);
+    doc.setLineWidth(0.5);
+    doc.line(8, 48, W-8, 48);
+
+    // Función para renderizar un jugador
+    const renderJugador = (j, x, y, colW) => {
+      const contratoColor = getContratoColor(j.finContrato, j.finContratoMes);
+      const logo = logoCache[(j.equipoPrestamo||j.equipo||"").trim()];
+      const logoOwner = j.equipoPrestamo ? logoCache[j.equipo?.trim()] : null;
+      const edad = j.fechaNac ? Math.floor((Date.now()-new Date(j.fechaNac).getTime())/(1000*60*60*24*365.25)) : null;
+
+      if (logo) addLogoToPDF(doc, logo, x+3, y+3, 5);
+      if (logoOwner) addLogoToPDF(doc, logoOwner, x+9, y+3, 4);
+
+      // Color nombre según contrato
+      if (contratoColor==="#ef4444") doc.setTextColor(220,0,0);
+      else if (contratoColor==="#f59e0b") doc.setTextColor(0,80,180);
+      else doc.setTextColor(0,0,0);
+
+      doc.setFont("helvetica","bold");
+      doc.setFontSize(6.5);
+      const nac = j.nacionalidad ? ` (${j.nacionalidad.substring(0,3).toUpperCase()})` : "";
+      const yr = edad ? ` / ${edad}` : "";
+      const pos = j.posicion ? ` [${j.posicion}]` : "";
+      doc.text(`${j.nombre.trim()} ${j.apellido.trim()}${nac}${yr}${pos}`, x+14, y+3.5, {maxWidth:colW-15});
+
+      doc.setFont("helvetica","normal");
+      doc.setTextColor(80,80,80);
+      doc.setFontSize(6);
+      const eqText = j.equipoPrestamo ? `${j.equipoPrestamo} (${j.equipo})` : j.equipo||"";
+      doc.text(eqText, x+14, y+7, {maxWidth:colW-15});
+
+      doc.setTextColor(0,0,0);
+      return j.equipoPrestamo ? 10 : 8;
+    };
+
+    // Columnas principales
+    const startY = 52;
+    const colCount = 3;
+    const colW = (W-16)/colCount;
+    let cols = [[],[],[]];
+    mainJugadores.forEach((j,i)=>cols[i%colCount].push(j));
+
+    let yPos = [startY, startY, startY];
+    cols.forEach((col,ci)=>{
+      const x = 8 + ci*colW;
+      col.forEach(j=>{
+        const h = renderJugador(j, x, yPos[ci], colW);
+        yPos[ci] += h;
+      });
+    });
+
+    // Short list
+    if (shortListJugadores.length > 0) {
+      const maxY = Math.max(...yPos) + 6;
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(0,0,0);
+      doc.line(8, maxY, W-8, maxY);
+
+      doc.setFont("helvetica","bold");
+      doc.setFontSize(10);
+      doc.setTextColor(0,0,0);
+      doc.text("SHORT LIST", W/2, maxY+7, {align:"center"});
+      doc.setLineWidth(0.8);
+      doc.line(W/2-18, maxY+8.5, W/2+18, maxY+8.5);
+
+      const slCols = [[],[]];
+      shortListJugadores.forEach((j,i)=>slCols[i%2].push(j));
+      const slColW = (W-16)/2;
+      let slY = [maxY+13, maxY+13];
+
+      slCols.forEach((col,ci)=>{
+        const x = 8+ci*slColW;
+        col.forEach(j=>{
+          const contratoColor = getContratoColor(j.finContrato, j.finContratoMes);
+          const logo = logoCache[(j.equipoPrestamo||j.equipo||"").trim()];
+          const logoOwner = j.equipoPrestamo ? logoCache[j.equipo?.trim()] : null;
+          const edad = j.fechaNac?Math.floor((Date.now()-new Date(j.fechaNac).getTime())/(1000*60*60*24*365.25)):null;
+
+          // Card con borde amarillo
+          doc.setFillColor(255,252,235);
+          doc.roundedRect(x, slY[ci], slColW-3, 16, 1, 1, "F");
+          doc.setDrawColor(245,158,11);
+          doc.setLineWidth(0.5);
+          doc.roundedRect(x, slY[ci], slColW-3, 16, 1, 1);
+
+          // Logos
+          if (logo) addLogoToPDF(doc, logo, x+6, slY[ci]+8, 10);
+          if (logoOwner) addLogoToPDF(doc, logoOwner, x+13, slY[ci]+8, 7);
+
+          // Posición badge
+          if (j.posicion) {
+            doc.setFillColor(245,158,11);
+            const pw = doc.getTextWidth(j.posicion)+3;
+            doc.roundedRect(x+slColW-pw-6, slY[ci]+1.5, pw, 4, 1,1,"F");
+            doc.setTextColor(255,255,255);
+            doc.setFontSize(5.5);
+            doc.text(j.posicion, x+slColW-pw/2-6, slY[ci]+4, {align:"center"});
+          }
+
+          // Nombre
+          if (contratoColor==="#ef4444") doc.setTextColor(220,0,0);
+          else if (contratoColor==="#f59e0b") doc.setTextColor(0,80,180);
+          else doc.setTextColor(0,0,0);
+          doc.setFont("helvetica","bold");
+          doc.setFontSize(7.5);
+          const nac = j.nacionalidad?` (${j.nacionalidad.substring(0,3).toUpperCase()})`:""
+          const yr = edad?` / ${edad}`:""
+          doc.text(`${j.nombre.trim()} ${j.apellido.trim()}${nac}${yr}`, x+17, slY[ci]+5.5, {maxWidth:slColW-25});
+
+          doc.setFont("helvetica","normal");
+          doc.setTextColor(80,80,80);
+          doc.setFontSize(6.5);
+          const eqText = j.equipoPrestamo?`${j.equipoPrestamo} (${j.equipo})`:j.equipo||"";
+          doc.text(eqText, x+17, slY[ci]+10, {maxWidth:slColW-25});
+
+          if (j.finContratoMes&&j.finContrato) {
+            const cColor=contratoColor==="#ef4444"?[220,0,0]:contratoColor==="#f59e0b"?[0,80,180]:[0,120,0];
+            doc.setTextColor(...cColor);
+            doc.setFontSize(5.5);
+            doc.text(`Cont. ${j.finContratoMes} ${j.finContrato}`, x+17, slY[ci]+14);
+          }
+
+          doc.setTextColor(0,0,0);
+          doc.setDrawColor(0,0,0);
+          slY[ci] += 18;
+        });
+      });
+    }
+
+    // Fecha pie
+    doc.setFont("helvetica","normal");
+    doc.setFontSize(6);
+    doc.setTextColor(150,150,150);
+    doc.text(new Date().toLocaleDateString("es-ES"), W/2, H-4, {align:"center"});
+
+    doc.save(`favoritos-${lista.nombre}.pdf`);
+    showNotif("✓ PDF exportado correctamente.");
+  };
   const xiRef = useRef(null);
   const perfilRef = useRef(null);
 
@@ -837,6 +1132,7 @@ export default function ScoutingApp() {
               {id:"registrar",icon:"⊕",label:"Registrar Jugador"},
               {id:"xi",icon:"◈",label:"11 Ideal"},
               {id:"perfil",icon:"◉",label:"Perfil del Jugador"},
+              {id:"favoritos",icon:"★",label:"Favoritos"},
             ].map(item=>(
               <div key={item.id}
                 className="nav-item"
@@ -876,7 +1172,7 @@ export default function ScoutingApp() {
           }}>
             <div>
               <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,letterSpacing:2}}>
-                {activeTab==="registrar"?"REGISTRAR JUGADOR":activeTab==="xi"?"11 IDEAL":"PERFIL DEL JUGADOR"}
+                {activeTab==="registrar"?"REGISTRAR JUGADOR":activeTab==="xi"?"11 IDEAL":activeTab==="favoritos"?"FAVORITOS":"PERFIL DEL JUGADOR"}
               </p>
               <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:3,marginTop:2}}>
                 {loading ? "CARGANDO JUGADORES..." : `${players.length} JUGADORES REGISTRADOS`}
@@ -1637,6 +1933,374 @@ export default function ScoutingApp() {
               </div>
               );
             })()}
+            {/* === FAVORITOS === */}
+            {activeTab==="favoritos" && (() => {
+              const favInputStyle = {width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"7px 10px",color:"#e2e8f0",fontSize:13,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box"};
+              const favLabelStyle = {display:"block",color:"#64748b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1.5,textTransform:"uppercase",marginBottom:4};
+              const dropdownStyle = {position:"absolute",top:"100%",left:0,right:0,zIndex:200,background:"#111c16",border:"1px solid rgba(74,222,128,0.3)",borderRadius:6,maxHeight:160,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,0.5)"};
+
+              // Base de datos de jugadores favoritos (de todas las listas)
+              const allFavPlayers = {};
+              listas.forEach(l => (l.jugadores||[]).forEach(j => { allFavPlayers[j.id] = j; }));
+              const favPlayersDB = Object.values(allFavPlayers);
+
+              // Jugadores únicos del sistema para autocompletado
+              const grouped = {};
+              players.forEach(p => {
+                const key = `${p.nombre.trim()} ${p.apellido.trim()}`;
+                if (!grouped[key]) grouped[key] = p;
+              });
+              const uniquePlayersList = Object.values(grouped);
+              const equiposUnicos = [...new Set(players.map(p=>p.equipo).filter(Boolean).map(e=>e.trim()))].sort();
+
+              const posicionesUnicas = [...new Set(favPlayersDB.map(p=>p.posicion).filter(Boolean))].sort();
+              const equiposFavUnicos = [...new Set(favPlayersDB.map(p=>(p.equipoPrestamo||p.equipo||"")).filter(Boolean))].sort();
+
+              const filteredFavPlayers = favPlayersDB.filter(p => {
+                const matchName = !favSearch || `${p.nombre} ${p.apellido}`.toLowerCase().includes(favSearch.toLowerCase());
+                const matchPos = !favPosFilter || p.posicion === favPosFilter;
+                const matchEq = !favEquipoFilter || (p.equipo||"").includes(favEquipoFilter) || (p.equipoPrestamo||"").includes(favEquipoFilter);
+                return matchName && matchPos && matchEq;
+              });
+
+              const isSelected = (id) => selectedForList.some(j=>j.id===id);
+
+              const toggleSelect = (j) => {
+                if (isSelected(j.id)) setSelectedForList(s=>s.filter(x=>x.id!==j.id));
+                else setSelectedForList(s=>[...s,j]);
+              };
+
+              const guardarLista = () => {
+                if (!listaNombre.trim() || selectedForList.length===0) return;
+                const nueva = {
+                  id: Date.now().toString(),
+                  nombre: listaNombre.trim(),
+                  fecha: new Date().toLocaleDateString("es-ES"),
+                  jugadores: selectedForList
+                };
+                setListas(prev=>[...prev,nueva]);
+                saveLista(nueva);
+                setSelectedForList([]);
+                setListaNombre("");
+                showNotif(`Lista "${nueva.nombre}" guardada.`);
+              };
+
+              // Nombre sugerencias para autocompletado en registro
+              const nombreQuery = `${favForm.nombre}${favForm.apellido?" "+favForm.apellido:""}`.trim();
+              const playerSuggestions = nombreQuery.length > 1
+                ? uniquePlayersList.filter(p=>`${p.nombre.trim()} ${p.apellido.trim()}`.toLowerCase().includes(nombreQuery.toLowerCase())).slice(0,6)
+                : [];
+              const equipoSug = favForm.equipo.length > 0
+                ? equiposUnicos.filter(e=>e.toLowerCase().includes(favForm.equipo.toLowerCase()) && e.toLowerCase()!==favForm.equipo.toLowerCase()).slice(0,5)
+                : [];
+              const equipoPrestSug = favForm.equipoPrestamo.length > 0
+                ? equiposUnicos.filter(e=>e.toLowerCase().includes(favForm.equipoPrestamo.toLowerCase()) && e.toLowerCase()!==favForm.equipoPrestamo.toLowerCase()).slice(0,5)
+                : [];
+
+              return (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:20,height:"calc(100vh - 130px)"}}>
+
+                  {/* Panel izquierdo — base de jugadores + registro */}
+                  <div style={{display:"flex",flexDirection:"column",gap:12,overflow:"hidden"}}>
+
+                    {/* Header con buscador y botón registrar */}
+                    <div style={{display:"flex",gap:10,alignItems:"flex-end",flexWrap:"wrap"}}>
+                      <div style={{flex:2,minWidth:160}}>
+                        <label style={favLabelStyle}>Buscar jugador</label>
+                        <input style={favInputStyle} placeholder="Nombre o apellido..."
+                          value={favSearch} onChange={e=>setFavSearch(e.target.value)}/>
+                      </div>
+                      <div style={{flex:1,minWidth:120}}>
+                        <label style={favLabelStyle}>Posición</label>
+                        <select style={favInputStyle} value={favPosFilter} onChange={e=>setFavPosFilter(e.target.value)}>
+                          <option value="">Todas</option>
+                          {posicionesUnicas.map(p=><option key={p}>{p}</option>)}
+                        </select>
+                      </div>
+                      <div style={{flex:1,minWidth:120}}>
+                        <label style={favLabelStyle}>Equipo</label>
+                        <select style={favInputStyle} value={favEquipoFilter} onChange={e=>setFavEquipoFilter(e.target.value)}>
+                          <option value="">Todos</option>
+                          {equiposFavUnicos.map(e=><option key={e}>{e}</option>)}
+                        </select>
+                      </div>
+                      <button className="btn-primary" style={{padding:"7px 14px",fontSize:12,whiteSpace:"nowrap"}}
+                        onClick={()=>setShowRegForm(v=>!v)}>
+                        {showRegForm ? "✕ Cerrar" : "+ Registrar jugador"}
+                      </button>
+                    </div>
+
+                    {/* Formulario de registro */}
+                    {showRegForm && (
+                      <div style={{background:"#0d1a12",borderRadius:10,border:"1px solid rgba(74,222,128,0.2)",padding:16}}>
+                        <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:12,letterSpacing:2,marginBottom:12}}>REGISTRAR JUGADOR EN FAVORITOS</p>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginBottom:8}}>
+
+                          {/* Búsqueda nombre */}
+                          <div style={{position:"relative",gridColumn:"1/3"}}>
+                            <label style={favLabelStyle}>Nombre y apellido</label>
+                            <input style={favInputStyle} placeholder="Buscar en el sistema..."
+                              value={`${favForm.nombre}${favForm.apellido?" "+favForm.apellido:""}`}
+                              onChange={e=>{const p=e.target.value.split(" ");setFavForm(f=>({...f,nombre:p[0]||"",apellido:p.slice(1).join(" ")||""}));}}
+                              autoComplete="off"/>
+                            {playerSuggestions.length > 0 && (
+                              <div style={dropdownStyle}>
+                                {playerSuggestions.map((p,i)=>(
+                                  <div key={i} style={{padding:"7px 10px",cursor:"pointer",color:"#e2e8f0",fontSize:12,borderBottom:"1px solid rgba(255,255,255,0.05)"}}
+                                    onMouseDown={()=>setFavForm(f=>({...f,nombre:p.nombre.trim(),apellido:p.apellido.trim(),equipo:(p.equipo||"").trim(),equipoPrestamo:(p.equipoPrestamo||"").trim(),fechaNac:(p.fechaNac||"").toString().substring(0,10),nacionalidad:p.nacionalidad||"",posicion:p.posicion||""}))}
+                                    onMouseEnter={e=>e.currentTarget.style.background="rgba(74,222,128,0.1)"}
+                                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                                    <span style={{fontWeight:700}}>{p.nombre.trim()} {p.apellido.trim()}</span>
+                                    <span style={{color:"#64748b",marginLeft:6,fontSize:10}}>{(p.equipo||"").trim()} · {p.posicion}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Posición */}
+                          <div>
+                            <label style={favLabelStyle}>Posición</label>
+                            <input style={favInputStyle} placeholder="Ej. MCI"
+                              value={favForm.posicion||""}
+                              onChange={e=>setFavForm(f=>({...f,posicion:e.target.value}))}/>
+                          </div>
+
+                          {/* Nacionalidad */}
+                          <div>
+                            <label style={favLabelStyle}>Nacionalidad</label>
+                            <input style={favInputStyle} placeholder="Ej. Colombia"
+                              value={favForm.nacionalidad}
+                              onChange={e=>setFavForm(f=>({...f,nacionalidad:e.target.value}))}/>
+                          </div>
+
+                          {/* Equipo */}
+                          <div style={{position:"relative"}}>
+                            <label style={favLabelStyle}>Equipo</label>
+                            <input style={favInputStyle} placeholder="Club dueño"
+                              value={favForm.equipo} onChange={e=>setFavForm(f=>({...f,equipo:e.target.value}))} autoComplete="off"/>
+                            {equipoSug.length>0&&(
+                              <div style={dropdownStyle}>
+                                {equipoSug.map((e,i)=>(
+                                  <div key={i} style={{padding:"6px 10px",cursor:"pointer",color:"#e2e8f0",fontSize:12,display:"flex",alignItems:"center",gap:6,borderBottom:"1px solid rgba(255,255,255,0.05)"}}
+                                    onMouseDown={()=>setFavForm(f=>({...f,equipo:e}))}
+                                    onMouseEnter={ev=>ev.currentTarget.style.background="rgba(74,222,128,0.1)"}
+                                    onMouseLeave={ev=>ev.currentTarget.style.background="transparent"}>
+                                    <ShieldImage equipo={e} size={16}/>{e}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Equipo préstamo */}
+                          <div style={{position:"relative"}}>
+                            <label style={favLabelStyle}>Equipo préstamo</label>
+                            <input style={favInputStyle} placeholder="Si está prestado"
+                              value={favForm.equipoPrestamo} onChange={e=>setFavForm(f=>({...f,equipoPrestamo:e.target.value}))} autoComplete="off"/>
+                            {equipoPrestSug.length>0&&(
+                              <div style={dropdownStyle}>
+                                {equipoPrestSug.map((e,i)=>(
+                                  <div key={i} style={{padding:"6px 10px",cursor:"pointer",color:"#e2e8f0",fontSize:12,display:"flex",alignItems:"center",gap:6,borderBottom:"1px solid rgba(255,255,255,0.05)"}}
+                                    onMouseDown={()=>setFavForm(f=>({...f,equipoPrestamo:e}))}
+                                    onMouseEnter={ev=>ev.currentTarget.style.background="rgba(74,222,128,0.1)"}
+                                    onMouseLeave={ev=>ev.currentTarget.style.background="transparent"}>
+                                    <ShieldImage equipo={e} size={16}/>{e}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Fecha nac */}
+                          <div>
+                            <label style={favLabelStyle}>Fecha Nac.</label>
+                            <input style={favInputStyle} placeholder="YYYY-MM-DD"
+                              value={favForm.fechaNac} onChange={e=>setFavForm(f=>({...f,fechaNac:e.target.value}))}/>
+                          </div>
+
+                          {/* Fin contrato */}
+                          <div>
+                            <label style={favLabelStyle}>Fin contrato</label>
+                            <div style={{display:"flex",gap:4}}>
+                              <select style={{...favInputStyle,flex:1}} value={favForm.finContratoMes} onChange={e=>setFavForm(f=>({...f,finContratoMes:e.target.value}))}>
+                                <option value="">Mes</option>
+                                <option>Junio</option>
+                                <option>Diciembre</option>
+                              </select>
+                              <input style={{...favInputStyle,width:56}} placeholder="Año" value={favForm.finContrato} onChange={e=>setFavForm(f=>({...f,finContrato:e.target.value}))}/>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{display:"flex",gap:8}}>
+                          <button className="btn-primary" style={{padding:"7px 16px",fontSize:12}} onClick={()=>{
+                            if(!favForm.nombre) return;
+                            const nuevo = {...favForm, id:Date.now().toString()};
+                            // Guardar en todas las listas no — solo en la DB general (lista temporal)
+                            const listaTemp = listas.find(l=>l.nombre==="__db__") || {id:"__db__",nombre:"__db__",fecha:new Date().toLocaleDateString("es-ES"),jugadores:[]};
+                            const listaActualizada = {...listaTemp, jugadores:[...listaTemp.jugadores, nuevo]};
+                            setListas(prev=>{
+                              const existe = prev.find(l=>l.nombre==="__db__");
+                              return existe ? prev.map(l=>l.nombre==="__db__"?listaActualizada:l) : [...prev, listaActualizada];
+                            });
+                            saveLista(listaActualizada);
+                            setFavForm({nombre:"",apellido:"",equipo:"",equipoPrestamo:"",fechaNac:"",nacionalidad:"",finContrato:"",finContratoMes:"",posicion:""});
+                            showNotif("Jugador registrado en favoritos.");
+                          }}>Registrar</button>
+                          <button className="btn-sec" style={{padding:"7px 12px",fontSize:12}} onClick={()=>setShowRegForm(false)}>Cancelar</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Grid de jugadores */}
+                    <div style={{overflowY:"auto",flex:1}}>
+                      {favPlayersDB.length === 0 && (
+                        <div style={{textAlign:"center",padding:"40px",color:"#475569"}}>
+                          <p style={{fontSize:13}}>Registra jugadores para comenzar.</p>
+                        </div>
+                      )}
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:8}}>
+                        {filteredFavPlayers.map(j=>{
+                          const contratoColor = getContratoColor(j.finContrato, j.finContratoMes);
+                          const edad = j.fechaNac ? Math.floor((Date.now()-new Date(j.fechaNac).getTime())/(1000*60*60*24*365.25)) : null;
+                          const sel = isSelected(j.id);
+                          return (
+                            <div key={j.id}
+                              onClick={()=>toggleSelect(j)}
+                              style={{
+                                background: sel?"rgba(74,222,128,0.1)":"rgba(255,255,255,0.03)",
+                                borderRadius:8, padding:12, cursor:"pointer",
+                                border:`1px solid ${sel?"rgba(74,222,128,0.5)":"rgba(255,255,255,0.07)"}`,
+                                transition:"all 0.15s", position:"relative"
+                              }}>
+                              {sel && <div style={{position:"absolute",top:8,right:8,background:"#4ade80",borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                <span style={{color:"#000",fontSize:10,fontWeight:700}}>✓</span>
+                              </div>}
+
+                              {/* Nombre y posición */}
+                              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                                {j.posicion && <span style={{background:"rgba(74,222,128,0.15)",color:"#4ade80",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,padding:"2px 6px",borderRadius:4}}>{j.posicion}</span>}
+                                <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700}}>{j.nombre} {j.apellido}</p>
+                              </div>
+
+                              {/* Equipos */}
+                              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                                <ShieldImage equipo={(j.equipoPrestamo||j.equipo||"").trim()} size={20}/>
+                                <span style={{color:"#94a3b8",fontSize:11}}>{j.equipoPrestamo?`${j.equipoPrestamo} (pr. ${j.equipo})`:j.equipo||"—"}</span>
+                              </div>
+
+                              {/* Info */}
+                              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                                {j.nacionalidad && (
+                                  <div style={{display:"flex",alignItems:"center",gap:4}}>
+                                    <img src={`https://flagcdn.com/24x18/${getNacionalidadCode(j.nacionalidad)}.png`} alt="" style={{width:16,height:12,objectFit:"cover",borderRadius:1}} onError={e=>e.target.style.display="none"}/>
+                                    <span style={{color:"#64748b",fontSize:11}}>{j.nacionalidad}</span>
+                                  </div>
+                                )}
+                                {edad && <span style={{color:"#64748b",fontSize:11}}>{edad} años</span>}
+                                {contratoColor && j.finContratoMes && (
+                                  <span style={{color:contratoColor,fontSize:10,fontFamily:"'Barlow Condensed',sans-serif"}}>
+                                    {contratoColor==="#ef4444"?"⚠ ":""}{j.finContratoMes} {j.finContrato}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Panel derecho — constructor de lista */}
+                  <div style={{background:"#0d1a12",borderRadius:10,border:"1px solid rgba(255,255,255,0.07)",padding:16,display:"flex",flexDirection:"column",gap:12,overflow:"hidden"}}>
+                    <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:12,letterSpacing:2}}>CONSTRUIR LISTA</p>
+
+                    {/* Nombre de lista y guardar */}
+                    <div>
+                      <label style={favLabelStyle}>Nombre de la lista</label>
+                      <input style={favInputStyle} placeholder="Ej. Mediocampistas enero..."
+                        value={listaNombre} onChange={e=>setListaNombre(e.target.value)}/>
+                    </div>
+
+                    {selectedForList.length === 0 ? (
+                      <div style={{textAlign:"center",padding:"20px 0",color:"#475569",flex:1}}>
+                        <p style={{fontSize:12}}>Haz clic en jugadores del panel izquierdo para agregarlos.</p>
+                      </div>
+                    ) : (
+                      <div style={{flex:1,overflowY:"auto"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                          <p style={{color:"#64748b",fontSize:11}}>{selectedForList.length} jugadores · {shortList.length} en short list</p>
+                        </div>
+                        {selectedForList.map(j=>{
+                          const contratoColor = getContratoColor(j.finContrato, j.finContratoMes);
+                          const isShort = shortList.includes(j.id);
+                          return (
+                            <div key={j.id} style={{
+                              display:"flex",alignItems:"center",gap:8,padding:"8px 0",
+                              borderBottom:"1px solid rgba(255,255,255,0.05)",
+                              background: isShort?"rgba(251,191,36,0.04)":"transparent",
+                              borderRadius: isShort?4:0
+                            }}>
+                              {/* Estrella short list */}
+                              <button
+                                onClick={e=>{e.stopPropagation();setShortList(s=>isShort?s.filter(x=>x!==j.id):[...s,j.id]);}}
+                                style={{background:"none",border:"none",cursor:"pointer",fontSize:16,flexShrink:0,padding:0,lineHeight:1}}
+                                title={isShort?"Quitar de short list":"Agregar a short list"}>
+                                <span style={{color:isShort?"#f59e0b":"#475569"}}>★</span>
+                              </button>
+                              <ShieldImage equipo={(j.equipoPrestamo||j.equipo||"").trim()} size={22}/>
+                              <div style={{flex:1,minWidth:0}}>
+                                <p style={{color: isShort?"#fbbf24":"#e2e8f0",fontSize:12,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                                  {j.posicion && <span style={{color:isShort?"#f59e0b":"#4ade80",marginRight:4}}>{j.posicion}</span>}
+                                  {j.nombre} {j.apellido}
+                                </p>
+                                <p style={{color:"#475569",fontSize:10}}>{j.equipoPrestamo||j.equipo||"—"}</p>
+                              </div>
+                              {contratoColor && <span style={{color:contratoColor,fontSize:10,flexShrink:0}}>{j.finContratoMes?.substring(0,3)} {j.finContrato}</span>}
+                              <button onClick={e=>{e.stopPropagation();setSelectedForList(s=>s.filter(x=>x.id!==j.id));setShortList(s=>s.filter(x=>x!==j.id));}}
+                                style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:14,flexShrink:0}}
+                                onMouseEnter={e=>e.target.style.color="#ef4444"}
+                                onMouseLeave={e=>e.target.style.color="#475569"}>×</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div style={{display:"flex",flexDirection:"column",gap:8,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:12}}>
+                      <button className="btn-primary" style={{width:"100%",padding:"9px",fontSize:13}}
+                        disabled={selectedForList.length===0||!listaNombre.trim()}
+                        onClick={guardarLista}>
+                        ★ Guardar lista
+                      </button>
+                      {selectedForList.length > 0 && listaNombre.trim() && (
+                        <button className="btn-sec" style={{width:"100%",padding:"7px",fontSize:12}}
+                          onClick={()=>exportFavoritosPDF({nombre:listaNombre,jugadores:selectedForList,fecha:new Date().toLocaleDateString("es-ES")},shortList)}>
+                          ↓ Exportar PDF
+                        </button>
+                      )}
+                      {listas.filter(l=>l.nombre!=="__db__").length > 0 && (
+                        <div style={{marginTop:4}}>
+                          <p style={{color:"#64748b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,marginBottom:6}}>LISTAS GUARDADAS</p>
+                          {listas.filter(l=>l.nombre!=="__db__").map(l=>(
+                            <div key={l.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                              <div>
+                                <p style={{color:"#94a3b8",fontSize:12}}>{l.nombre}</p>
+                                <p style={{color:"#475569",fontSize:10}}>{l.fecha} · {l.jugadores?.length||0} jug.</p>
+                              </div>
+                              <button className="btn-sec" style={{padding:"3px 8px",fontSize:10}}
+                                onClick={()=>exportFavoritosPDF(l)}>↓</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
           </div>
         </div>
       </div>
