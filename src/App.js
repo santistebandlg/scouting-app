@@ -423,6 +423,7 @@ export default function ScoutingApp() {
   const [listaNombre, setListaNombre] = useState("");
   const [selectedForList, setSelectedForList] = useState([]);
   const [shortList, setShortList] = useState([]);
+  const [editingListaId, setEditingListaId] = useState(null);
   const [favForm, setFavForm] = useState({
     nombre:"", apellido:"", equipo:"", equipoPrestamo:"",
     fechaNac:"", nacionalidad:"", finContrato:"", finContratoMes:"", posicion:""
@@ -570,6 +571,9 @@ export default function ScoutingApp() {
     doc.setLineWidth(0.5);
     doc.line(8, 48, W-8, 48);
 
+    // Helper para normalizar texto con caracteres especiales para jsPDF
+    const pdfText = (str) => (str||"").normalize("NFC");
+
     // Función para renderizar un jugador
     const renderJugador = (j, x, y, colW) => {
       const contratoColor = getContratoColor(j.finContrato, j.finContratoMes);
@@ -577,8 +581,13 @@ export default function ScoutingApp() {
       const logoOwner = j.equipoPrestamo ? logoCache[j.equipo?.trim()] : null;
       const edad = j.fechaNac ? Math.floor((Date.now()-new Date(j.fechaNac).getTime())/(1000*60*60*24*365.25)) : null;
 
-      if (logo) addLogoToPDF(doc, logo, x+3, y+3, 5);
-      if (logoOwner) addLogoToPDF(doc, logoOwner, x+9, y+3, 4);
+      // Logos del mismo tamaño, lado a lado
+      if (logo && logoOwner) {
+        addLogoToPDF(doc, logoOwner, x+3, y+3, 5);
+        addLogoToPDF(doc, logo, x+9, y+3, 5);
+      } else if (logo) {
+        addLogoToPDF(doc, logo, x+3, y+3, 5);
+      }
 
       // Color nombre según contrato
       if (contratoColor==="#ef4444") doc.setTextColor(220,0,0);
@@ -587,16 +596,16 @@ export default function ScoutingApp() {
 
       doc.setFont("helvetica","bold");
       doc.setFontSize(6.5);
-      const nac = j.nacionalidad ? ` (${j.nacionalidad.substring(0,3).toUpperCase()})` : "";
+      const nac = j.nacionalidad ? ` (${pdfText(j.nacionalidad).substring(0,3).toUpperCase()})` : "";
       const yr = edad ? ` / ${edad}` : "";
-      const pos = j.posicion ? ` [${j.posicion}]` : "";
-      doc.text(`${j.nombre.trim()} ${j.apellido.trim()}${nac}${yr}${pos}`, x+14, y+3.5, {maxWidth:colW-15});
+      const pos = j.posicion ? ` [${pdfText(j.posicion)}]` : "";
+      doc.text(pdfText(`${j.nombre.trim()} ${j.apellido.trim()}${nac}${yr}${pos}`), x+16, y+3.5, {maxWidth:colW-17});
 
       doc.setFont("helvetica","normal");
       doc.setTextColor(80,80,80);
       doc.setFontSize(6);
-      const eqText = j.equipoPrestamo ? `${j.equipoPrestamo} (${j.equipo})` : j.equipo||"";
-      doc.text(eqText, x+14, y+7, {maxWidth:colW-15});
+      const eqText = j.equipoPrestamo ? pdfText(`${j.equipoPrestamo} (${j.equipo})`) : pdfText(j.equipo||"");
+      doc.text(eqText, x+16, y+7, {maxWidth:colW-17});
 
       doc.setTextColor(0,0,0);
       return j.equipoPrestamo ? 10 : 8;
@@ -652,18 +661,22 @@ export default function ScoutingApp() {
           doc.setLineWidth(0.5);
           doc.roundedRect(x, slY[ci], slColW-3, 16, 1, 1);
 
-          // Logos
-          if (logo) addLogoToPDF(doc, logo, x+6, slY[ci]+8, 10);
-          if (logoOwner) addLogoToPDF(doc, logoOwner, x+13, slY[ci]+8, 7);
+          // Logos mismo tamaño
+          if (logo && logoOwner) {
+            addLogoToPDF(doc, logoOwner, x+4, slY[ci]+8, 8);
+            addLogoToPDF(doc, logo, x+13, slY[ci]+8, 8);
+          } else if (logo) {
+            addLogoToPDF(doc, logo, x+6, slY[ci]+8, 10);
+          }
 
           // Posición badge
           if (j.posicion) {
             doc.setFillColor(245,158,11);
-            const pw = doc.getTextWidth(j.posicion)+3;
+            const pw = doc.getTextWidth(pdfText(j.posicion))+3;
             doc.roundedRect(x+slColW-pw-6, slY[ci]+1.5, pw, 4, 1,1,"F");
             doc.setTextColor(255,255,255);
             doc.setFontSize(5.5);
-            doc.text(j.posicion, x+slColW-pw/2-6, slY[ci]+4, {align:"center"});
+            doc.text(pdfText(j.posicion), x+slColW-pw/2-6, slY[ci]+4, {align:"center"});
           }
 
           // Nombre
@@ -672,15 +685,15 @@ export default function ScoutingApp() {
           else doc.setTextColor(0,0,0);
           doc.setFont("helvetica","bold");
           doc.setFontSize(7.5);
-          const nac = j.nacionalidad?` (${j.nacionalidad.substring(0,3).toUpperCase()})`:""
+          const nac = j.nacionalidad?` (${pdfText(j.nacionalidad).substring(0,3).toUpperCase()})`:""
           const yr = edad?` / ${edad}`:""
-          doc.text(`${j.nombre.trim()} ${j.apellido.trim()}${nac}${yr}`, x+17, slY[ci]+5.5, {maxWidth:slColW-25});
+          doc.text(pdfText(`${j.nombre.trim()} ${j.apellido.trim()}${nac}${yr}`), x+23, slY[ci]+5.5, {maxWidth:slColW-30});
 
           doc.setFont("helvetica","normal");
           doc.setTextColor(80,80,80);
           doc.setFontSize(6.5);
-          const eqText = j.equipoPrestamo?`${j.equipoPrestamo} (${j.equipo})`:j.equipo||"";
-          doc.text(eqText, x+17, slY[ci]+10, {maxWidth:slColW-25});
+          const eqText = j.equipoPrestamo?pdfText(`${j.equipoPrestamo} (${j.equipo})`):pdfText(j.equipo||"");
+          doc.text(eqText, x+23, slY[ci]+10, {maxWidth:slColW-30});
 
           if (j.finContratoMes&&j.finContrato) {
             const cColor=contratoColor==="#ef4444"?[220,0,0]:contratoColor==="#f59e0b"?[0,80,180]:[0,120,0];
@@ -1972,23 +1985,54 @@ export default function ScoutingApp() {
 
               const guardarLista = () => {
                 if (!listaNombre.trim() || selectedForList.length===0) return;
-                const nueva = {
-                  id: Date.now().toString(),
-                  nombre: listaNombre.trim(),
-                  fecha: new Date().toLocaleDateString("es-ES"),
-                  jugadores: selectedForList
-                };
-                setListas(prev=>[...prev,nueva]);
-                saveLista(nueva);
-                setSelectedForList([]);
-                setListaNombre("");
-                showNotif(`Lista "${nueva.nombre}" guardada.`);
+                if (editingListaId) {
+                  // Editar lista existente
+                  const actualizada = {
+                    id: editingListaId,
+                    nombre: listaNombre.trim(),
+                    fecha: new Date().toLocaleDateString("es-ES"),
+                    jugadores: selectedForList
+                  };
+                  setListas(prev=>prev.map(l=>l.id===editingListaId?actualizada:l));
+                  saveLista(actualizada);
+                  setEditingListaId(null);
+                  setSelectedForList([]);
+                  setShortList([]);
+                  setListaNombre("");
+                  showNotif(`Lista "${actualizada.nombre}" actualizada.`);
+                } else {
+                  // Nueva lista
+                  const nueva = {
+                    id: Date.now().toString(),
+                    nombre: listaNombre.trim(),
+                    fecha: new Date().toLocaleDateString("es-ES"),
+                    jugadores: selectedForList
+                  };
+                  setListas(prev=>[...prev.filter(l=>l.nombre!=="__db__"),nueva,...prev.filter(l=>l.nombre==="__db__")]);
+                  saveLista(nueva);
+                  setSelectedForList([]);
+                  setShortList([]);
+                  setListaNombre("");
+                  showNotif(`Lista "${nueva.nombre}" guardada.`);
+                }
+              };
+
+              const cargarListaParaEditar = (lista) => {
+                setEditingListaId(lista.id);
+                setListaNombre(lista.nombre);
+                setSelectedForList(lista.jugadores||[]);
+                setShortList([]);
+                showNotif(`Editando "${lista.nombre}"`);
               };
 
               // Nombre sugerencias para autocompletado en registro
-              const nombreQuery = `${favForm.nombre}${favForm.apellido?" "+favForm.apellido:""}`.trim();
-              const playerSuggestions = nombreQuery.length > 1
-                ? uniquePlayersList.filter(p=>`${p.nombre.trim()} ${p.apellido.trim()}`.toLowerCase().includes(nombreQuery.toLowerCase())).slice(0,6)
+              const nombreQuery = favForm.nombre.trim();
+              const playerSuggestions = nombreQuery.length > 1 && !favForm._closeSuggestions
+                ? uniquePlayersList.filter(p=>{
+                    const fullName = `${p.nombre.trim()} ${p.apellido.trim()}`.toLowerCase();
+                    const query = `${favForm.nombre.trim()} ${favForm.apellido.trim()}`.toLowerCase().trim();
+                    return fullName.includes(query) || p.nombre.trim().toLowerCase().includes(nombreQuery.toLowerCase());
+                  }).slice(0,6)
                 : [];
               const equipoSug = favForm.equipo.length > 0
                 ? equiposUnicos.filter(e=>e.toLowerCase().includes(favForm.equipo.toLowerCase()) && e.toLowerCase()!==favForm.equipo.toLowerCase()).slice(0,5)
@@ -2036,15 +2080,22 @@ export default function ScoutingApp() {
                         <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:12,letterSpacing:2,marginBottom:12}}>REGISTRAR JUGADOR EN FAVORITOS</p>
                         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginBottom:8}}>
 
-                          {/* Búsqueda nombre */}
-                          <div style={{position:"relative",gridColumn:"1/3"}}>
-                            <label style={favLabelStyle}>Nombre y apellido</label>
-                            <input style={favInputStyle} placeholder="Buscar en el sistema..."
-                              value={`${favForm.nombre}${favForm.apellido?" "+favForm.apellido:""}`}
-                              onChange={e=>{const p=e.target.value.split(" ");setFavForm(f=>({...f,nombre:p[0]||"",apellido:p.slice(1).join(" ")||""}));}}
+                          {/* Nombre */}
+                          <div style={{position:"relative"}}>
+                            <label style={favLabelStyle}>Nombre</label>
+                            <input style={favInputStyle} placeholder="Ej. Pedro"
+                              value={favForm.nombre}
+                              onChange={e=>setFavForm(f=>({...f,nombre:e.target.value,_closeSuggestions:null}))}
+                              onKeyDown={e=>{ if(e.key==="Escape") setFavForm(f=>({...f,_closeSuggestions:Date.now()})); }}
                               autoComplete="off"/>
                             {playerSuggestions.length > 0 && (
-                              <div style={dropdownStyle}>
+                              <div style={{...dropdownStyle, minWidth:320}}>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 10px",borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
+                                  <span style={{color:"#64748b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>SUGERENCIAS DEL SISTEMA</span>
+                                  <button
+                                    onMouseDown={e=>{e.preventDefault();setFavForm(f=>({...f,_closeSuggestions:Date.now()}));}}
+                                    style={{background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:14,padding:"0 2px",lineHeight:1}}>✕</button>
+                                </div>
                                 {playerSuggestions.map((p,i)=>(
                                   <div key={i} style={{padding:"7px 10px",cursor:"pointer",color:"#e2e8f0",fontSize:12,borderBottom:"1px solid rgba(255,255,255,0.05)"}}
                                     onMouseDown={()=>setFavForm(f=>({...f,nombre:p.nombre.trim(),apellido:p.apellido.trim(),equipo:(p.equipo||"").trim(),equipoPrestamo:(p.equipoPrestamo||"").trim(),fechaNac:(p.fechaNac||"").toString().substring(0,10),nacionalidad:p.nacionalidad||"",posicion:p.posicion||""}))}
@@ -2056,6 +2107,15 @@ export default function ScoutingApp() {
                                 ))}
                               </div>
                             )}
+                          </div>
+
+                          {/* Apellido */}
+                          <div>
+                            <label style={favLabelStyle}>Apellido (opcional)</label>
+                            <input style={favInputStyle} placeholder="Ej. Santos"
+                              value={favForm.apellido}
+                              onChange={e=>setFavForm(f=>({...f,apellido:e.target.value}))}
+                              autoComplete="off"/>
                           </div>
 
                           {/* Posición */}
@@ -2078,7 +2138,9 @@ export default function ScoutingApp() {
                           <div style={{position:"relative"}}>
                             <label style={favLabelStyle}>Equipo</label>
                             <input style={favInputStyle} placeholder="Club dueño"
-                              value={favForm.equipo} onChange={e=>setFavForm(f=>({...f,equipo:e.target.value}))} autoComplete="off"/>
+                              value={favForm.equipo} onChange={e=>setFavForm(f=>({...f,equipo:e.target.value}))}
+                              onBlur={()=>setTimeout(()=>setFavForm(f=>({...f})),150)}
+                              autoComplete="off"/>
                             {equipoSug.length>0&&(
                               <div style={dropdownStyle}>
                                 {equipoSug.map((e,i)=>(
@@ -2272,8 +2334,14 @@ export default function ScoutingApp() {
                       <button className="btn-primary" style={{width:"100%",padding:"9px",fontSize:13}}
                         disabled={selectedForList.length===0||!listaNombre.trim()}
                         onClick={guardarLista}>
-                        ★ Guardar lista
+                        {editingListaId ? "✓ Actualizar lista" : "★ Guardar lista"}
                       </button>
+                      {editingListaId && (
+                        <button className="btn-sec" style={{width:"100%",padding:"7px",fontSize:12}}
+                          onClick={()=>{setEditingListaId(null);setSelectedForList([]);setShortList([]);setListaNombre("");}}>
+                          Cancelar edición
+                        </button>
+                      )}
                       {selectedForList.length > 0 && listaNombre.trim() && (
                         <button className="btn-sec" style={{width:"100%",padding:"7px",fontSize:12}}
                           onClick={()=>exportFavoritosPDF({nombre:listaNombre,jugadores:selectedForList,fecha:new Date().toLocaleDateString("es-ES")},shortList)}>
@@ -2284,13 +2352,24 @@ export default function ScoutingApp() {
                         <div style={{marginTop:4}}>
                           <p style={{color:"#64748b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,marginBottom:6}}>LISTAS GUARDADAS</p>
                           {listas.filter(l=>l.nombre!=="__db__").map(l=>(
-                            <div key={l.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                            <div key={l.id} style={{
+                              display:"flex",justifyContent:"space-between",alignItems:"center",
+                              padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.04)",
+                              background: editingListaId===l.id?"rgba(74,222,128,0.06)":"transparent",
+                              borderRadius:4,paddingLeft: editingListaId===l.id?4:0
+                            }}>
                               <div>
-                                <p style={{color:"#94a3b8",fontSize:12}}>{l.nombre}</p>
+                                <p style={{color: editingListaId===l.id?"#4ade80":"#94a3b8",fontSize:12}}>{l.nombre}</p>
                                 <p style={{color:"#475569",fontSize:10}}>{l.fecha} · {l.jugadores?.length||0} jug.</p>
                               </div>
-                              <button className="btn-sec" style={{padding:"3px 8px",fontSize:10}}
-                                onClick={()=>exportFavoritosPDF(l)}>↓</button>
+                              <div style={{display:"flex",gap:4}}>
+                                <button className="btn-sec" style={{padding:"3px 8px",fontSize:10}}
+                                  onClick={()=>cargarListaParaEditar(l)}
+                                  title="Editar lista">✏</button>
+                                <button className="btn-sec" style={{padding:"3px 8px",fontSize:10}}
+                                  onClick={()=>exportFavoritosPDF(l,[])}
+                                  title="Exportar PDF">↓</button>
+                              </div>
                             </div>
                           ))}
                         </div>
