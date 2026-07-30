@@ -269,6 +269,7 @@ const USERS = {
   "SantiagoRiani":       "Santiago Riani",
   "JacsonGabriel":       "Jacson Gabriel",
   "AndrésVelasco":       "Andrés Velasco",
+  "AlexanderMojica":     "Alexander Mojica",
   "GuillermoSantisteban":"Guillermo Santisteban",
 };
 
