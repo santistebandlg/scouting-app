@@ -3,7 +3,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 const SCOUTS = [
-  "Andrés Velasco","Bernardo Livramento","Cristian Franco",
+  "Alexander Mojica","Andrés Velasco","Bernardo Livramento","Cristian Franco",
   "Jacson Gabriel","Joan Cami","Manuel González","Nelson Roa","Santiago Riani"
 ];
 
@@ -370,7 +370,7 @@ export default function ScoutingApp() {
   const [showEquipoPrestSuggestions, setShowEquipoPrestSuggestions] = useState(false);
   const [idealXI, setIdealXI] = useState({});
   const [assigningSlot, setAssigningSlot] = useState(null);
-  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbztth_IJJDQRaLjYI2r2xISNczMfAwkrWStlzUNZpYVgbkinG19daOQoimTwXh_Dl9XiA/exec");
+  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbyjvczAwj4TIOUioSjKw8rZPVH8ql74OEWMEUYxElqH8G5BVWH9yvrDL5UQM0Sw_hRhcw/exec");
   const [sheetsConnected, setSheetsConnected] = useState(true);
   const [notification, setNotification] = useState(null);
   const [selectingPos, setSelectingPos] = useState(false);
@@ -381,7 +381,7 @@ export default function ScoutingApp() {
   useEffect(() => {
     const loadPlayers = async () => {
       try {
-        const url = "https://script.google.com/macros/s/AKfycbztth_IJJDQRaLjYI2r2xISNczMfAwkrWStlzUNZpYVgbkinG19daOQoimTwXh_Dl9XiA/exec?action=read";
+        const url = "https://script.google.com/macros/s/AKfycbyjvczAwj4TIOUioSjKw8rZPVH8ql74OEWMEUYxElqH8G5BVWH9yvrDL5UQM0Sw_hRhcw/exec?action=read";
         const res = await fetch(url, { method: "GET" });
         const data = await res.json();
         if (data.success && data.players.length > 0) {
@@ -410,7 +410,54 @@ export default function ScoutingApp() {
   const [xiFilterScout, setXiFilterScout] = useState("");
   const [xiFilterJornada, setXiFilterJornada] = useState("");
   const [xiFilterLiga, setXiFilterLiga] = useState("");
-  const [listas, setListas] = useState([]);
+  const [dts, setDts] = useState([]);
+  const [selectedDT, setSelectedDT] = useState(null);
+  const [selectedDTIndex, setSelectedDTIndex] = useState(0);
+  const [dtFilterScout, setDtFilterScout] = useState("");
+  const [dtSearch, setDtSearch] = useState("");
+  const [showDTForm, setShowDTForm] = useState(false);
+  const DT_URL = "https://script.google.com/macros/s/AKfycbyjvczAwj4TIOUioSjKw8rZPVH8ql74OEWMEUYxElqH8G5BVWH9yvrDL5UQM0Sw_hRhcw/exec";
+  const defaultDTForm = {
+    nombre:"", estilo:"", formacion:"", agente:"", scout:"",
+    fechaNac:"", nacionalidad:"", equipoActual:"", formaJuego:"",
+    personal:"", entrenamiento:"", cuerpoTecnico:""
+  };
+  const [dtForm, setDtForm] = useState(defaultDTForm);
+  const setDF = (k,v) => setDtForm(f=>({...f,[k]:v}));
+
+  useEffect(() => {
+    const loadDTs = async () => {
+      try {
+        const res = await fetch(`${DT_URL}?action=readDTs`);
+        const data = await res.json();
+        if (data.success) {
+          const withIds = (data.dts||[]).map((d,i)=>({...d, id: `dt_${i}_${d.nombre}`}));
+          setDts(withIds);
+        }
+      } catch(err) { console.error("Error cargando DTs:", err); }
+    };
+    loadDTs();
+  }, []);
+
+  const handleRegisterDT = () => {
+    if (!dtForm.nombre || !dtForm.scout) {
+      showNotif("Por favor completa nombre y scout.", "error"); return;
+    }
+    const dt = { ...dtForm, id: `dt_${Date.now()}`, fechaRegistro: new Date().toLocaleDateString("es-ES") };
+    setDts(prev => [...prev, dt]);
+    const params = new URLSearchParams({
+      action: "saveDT",
+      nombre: dt.nombre, estilo: dt.estilo, formacion: dt.formacion,
+      agente: dt.agente, scout: dt.scout, fechaNac: dt.fechaNac,
+      nacionalidad: dt.nacionalidad, equipoActual: dt.equipoActual,
+      formaJuego: dt.formaJuego, personal: dt.personal,
+      entrenamiento: dt.entrenamiento, cuerpoTecnico: dt.cuerpoTecnico
+    });
+    fetch(`${DT_URL}?${params.toString()}`, { method:"GET", mode:"no-cors" });
+    showNotif(`✓ ${dt.nombre} registrado correctamente.`);
+    setDtForm(defaultDTForm);
+    setShowDTForm(false);
+  };
   const [listaActiva, setListaActiva] = useState(null);
   const [showNuevaLista, setShowNuevaLista] = useState(false);
   const [showNuevaLista2, setShowNuevaLista2] = useState(false);
@@ -429,7 +476,7 @@ export default function ScoutingApp() {
     fechaNac:"", nacionalidad:"", finContrato:"", finContratoMes:"", posicion:""
   });
 
-  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbztth_IJJDQRaLjYI2r2xISNczMfAwkrWStlzUNZpYVgbkinG19daOQoimTwXh_Dl9XiA/exec";
+  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbyjvczAwj4TIOUioSjKw8rZPVH8ql74OEWMEUYxElqH8G5BVWH9yvrDL5UQM0Sw_hRhcw/exec";
 
   useEffect(() => {
     const loadFavoritos = async () => {
@@ -1145,6 +1192,7 @@ export default function ScoutingApp() {
               {id:"registrar",icon:"⊕",label:"Registrar Jugador"},
               {id:"xi",icon:"◈",label:"11 Ideal"},
               {id:"perfil",icon:"◉",label:"Perfil del Jugador"},
+              {id:"dts",icon:"▲",label:"DTs Scouteados"},
               {id:"favoritos",icon:"★",label:"Favoritos"},
             ].map(item=>(
               <div key={item.id}
@@ -1185,7 +1233,7 @@ export default function ScoutingApp() {
           }}>
             <div>
               <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,letterSpacing:2}}>
-                {activeTab==="registrar"?"REGISTRAR JUGADOR":activeTab==="xi"?"11 IDEAL":activeTab==="favoritos"?"FAVORITOS":"PERFIL DEL JUGADOR"}
+                {activeTab==="registrar"?"REGISTRAR JUGADOR":activeTab==="xi"?"11 IDEAL":activeTab==="dts"?"DTs SCOUTEADOS":activeTab==="favoritos"?"FAVORITOS":"PERFIL DEL JUGADOR"}
               </p>
               <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:3,marginTop:2}}>
                 {loading ? "CARGANDO JUGADORES..." : `${players.length} JUGADORES REGISTRADOS`}
@@ -1946,6 +1994,245 @@ export default function ScoutingApp() {
               </div>
               );
             })()}
+            {/* === DTs SCOUTEADOS === */}
+            {activeTab==="dts" && (() => {
+              // Agrupar DTs por nombre
+              const groupedDTs = {};
+              dts.forEach(d => {
+                if (!groupedDTs[d.nombre]) groupedDTs[d.nombre] = [];
+                groupedDTs[d.nombre].push(d);
+              });
+
+              const uniqueDTs = Object.values(groupedDTs).filter(records => {
+                const matchScout = !dtFilterScout || records.some(r=>r.scout===dtFilterScout);
+                const matchSearch = !dtSearch || records[0].nombre.toLowerCase().includes(dtSearch.toLowerCase()) ||
+                  (records[0].equipoActual||"").toLowerCase().includes(dtSearch.toLowerCase());
+                return matchScout && matchSearch;
+              }).sort((a,b) => {
+                const maxA = Math.max(...a.map(r=>new Date(r.fechaRegistro||0)));
+                const maxB = Math.max(...b.map(r=>new Date(r.fechaRegistro||0)));
+                return maxB - maxA;
+              });
+
+              const selectedRecords = selectedDT ? (groupedDTs[selectedDT.nombre]||[]) : [];
+              const currentDT = selectedRecords[selectedDTIndex] || selectedRecords[0];
+
+              return (
+                <div>
+                  {/* Filtros + botón registrar */}
+                  <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"flex-end",flexWrap:"wrap"}}>
+                    <div style={{flex:2,minWidth:200}}>
+                      <label style={labelStyle}>Buscar DT</label>
+                      <input style={inputStyle} placeholder="Nombre o equipo..."
+                        value={dtSearch} onChange={e=>setDtSearch(e.target.value)}/>
+                    </div>
+                    <div style={{maxWidth:220}}>
+                      <label style={labelStyle}>Filtrar por Scout</label>
+                      <select style={selectStyle} value={dtFilterScout} onChange={e=>setDtFilterScout(e.target.value)}>
+                        <option value="">Todos los scouts</option>
+                        {SCOUTS.map(s=><option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    {(dtFilterScout||dtSearch) && (
+                      <button className="btn-sec" onClick={()=>{setDtFilterScout("");setDtSearch("");}}>Limpiar ×</button>
+                    )}
+                    <button className="btn-primary" style={{padding:"8px 16px",fontSize:13}}
+                      onClick={()=>setShowDTForm(v=>!v)}>
+                      {showDTForm?"✕ Cerrar":"⊕ Registrar DT"}
+                    </button>
+                    <span style={{color:"#64748b",fontSize:12,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,paddingBottom:2}}>
+                      {uniqueDTs.length} DT{uniqueDTs.length!==1?"s":""}
+                    </span>
+                  </div>
+
+                  {/* Formulario registro DT */}
+                  {showDTForm && (
+                    <div style={{background:"#0d1a12",borderRadius:10,border:"1px solid rgba(74,222,128,0.2)",padding:20,marginBottom:24}}>
+                      <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:13,letterSpacing:2,marginBottom:16}}>REGISTRAR DIRECTOR TÉCNICO</p>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
+                        <div>
+                          <label style={labelStyle}>Nombre DT</label>
+                          <input style={inputStyle} placeholder="Nombre completo" value={dtForm.nombre} onChange={e=>setDF("nombre",e.target.value)}/>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Scout</label>
+                          <select style={selectStyle} value={dtForm.scout} onChange={e=>setDF("scout",e.target.value)}>
+                            <option value="">Seleccionar scout</option>
+                            {SCOUTS.map(s=><option key={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Equipo Actual</label>
+                          <input style={inputStyle} placeholder="Club actual" value={dtForm.equipoActual} onChange={e=>setDF("equipoActual",e.target.value)}/>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Estilo</label>
+                          <select style={selectStyle} value={dtForm.estilo} onChange={e=>setDF("estilo",e.target.value)}>
+                            <option value="">Seleccionar</option>
+                            {["Ofensivo","Defensivo","Equilibrado","Estratega","Posesión","Transiciones"].map(o=><option key={o}>{o}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Forma de Juego</label>
+                          <textarea rows={4} style={{...inputStyle,resize:"vertical",lineHeight:1.6}}
+                            placeholder="Descripción de la forma de juego del DT..."
+                            value={dtForm.formaJuego} onChange={e=>setDF("formaJuego",e.target.value)}/>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Formación Predominante</label>
+                          <input style={inputStyle} placeholder="Ej. 4-3-3" value={dtForm.formacion} onChange={e=>setDF("formacion",e.target.value)}/>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Agente</label>
+                          <input style={inputStyle} placeholder="Agencia o representante" value={dtForm.agente} onChange={e=>setDF("agente",e.target.value)}/>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Fecha de Nacimiento</label>
+                          <input type="date" style={inputStyle} value={dtForm.fechaNac} onChange={e=>setDF("fechaNac",e.target.value)}/>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Nacionalidad</label>
+                          <input style={inputStyle} placeholder="Ej. Argentina" value={dtForm.nacionalidad} onChange={e=>setDF("nacionalidad",e.target.value)}/>
+                        </div>
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+                        <div>
+                          <label style={labelStyle}>Personal</label>
+                          <textarea rows={4} style={{...inputStyle,resize:"vertical",lineHeight:1.6}}
+                            placeholder="Descripción del perfil personal del DT..."
+                            value={dtForm.personal} onChange={e=>setDF("personal",e.target.value)}/>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Entrenamiento</label>
+                          <textarea rows={4} style={{...inputStyle,resize:"vertical",lineHeight:1.6}}
+                            placeholder="Metodología y estilo de entrenamiento..."
+                            value={dtForm.entrenamiento} onChange={e=>setDF("entrenamiento",e.target.value)}/>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Cuerpo Técnico</label>
+                          <textarea rows={4} style={{...inputStyle,resize:"vertical",lineHeight:1.6}}
+                            placeholder="Información sobre su cuerpo técnico..."
+                            value={dtForm.cuerpoTecnico} onChange={e=>setDF("cuerpoTecnico",e.target.value)}/>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Forma de Juego</label>
+                          <textarea rows={4} style={{...inputStyle,resize:"vertical",lineHeight:1.6}}
+                            placeholder="Descripción de la forma de juego del DT..."
+                            value={dtForm.formaJuego} onChange={e=>setDF("formaJuego",e.target.value)}/>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:8}}>
+                        <button className="btn-primary" style={{padding:"10px 24px"}} onClick={handleRegisterDT}>✦ REGISTRAR DT</button>
+                        <button className="btn-sec" style={{padding:"10px 16px"}} onClick={()=>{setShowDTForm(false);setDtForm(defaultDTForm);}}>Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tarjetas DTs */}
+                  <p style={sectionTitle}>Directores Técnicos Scouteados</p>
+                  {uniqueDTs.length===0 && (
+                    <div style={{textAlign:"center",padding:"60px 0",color:"#475569"}}>
+                      <p style={{fontSize:40,marginBottom:12}}>▲</p>
+                      <p style={{fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:2,fontSize:16}}>NO HAY DTs REGISTRADOS</p>
+                    </div>
+                  )}
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12,marginBottom:32}}>
+                    {uniqueDTs.map(records => {
+                      const d = records[0];
+                      const isSelected = selectedDT?.nombre === d.nombre;
+                      return (
+                        <div key={d.nombre}
+                          onClick={()=>{setSelectedDT(d);setSelectedDTIndex(0);}}
+                          className="player-card"
+                          style={{
+                            padding:"14px 16px",borderRadius:8,cursor:"pointer",position:"relative",
+                            background: isSelected?"rgba(74,222,128,0.1)":"rgba(255,255,255,0.04)",
+                            border:`1px solid ${isSelected?"rgba(74,222,128,0.4)":"rgba(255,255,255,0.08)"}`,
+                            transition:"all 0.15s"
+                          }}>
+                          <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:700}}>{d.nombre}</p>
+                          <p style={{color:"#64748b",fontSize:12,marginTop:3}}>{d.equipoActual||"—"} · {d.estilo||"—"}</p>
+                          <p style={{color:"#4ade80",fontSize:11,marginTop:4,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>{d.scout}</p>
+                          {records.length > 1 && (
+                            <div style={{position:"absolute",top:10,right:10,background:"rgba(74,222,128,0.2)",border:"1px solid rgba(74,222,128,0.4)",borderRadius:10,padding:"1px 7px",fontSize:11,color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif"}}>
+                              {records.length}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Modal perfil DT */}
+                  {selectedDT && currentDT && (
+                    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,overflowY:"auto"}}
+                      onClick={()=>setSelectedDT(null)}>
+                      <div onClick={e=>e.stopPropagation()} style={{
+                        background:"#0d1a12",borderRadius:14,border:"1px solid rgba(74,222,128,0.2)",
+                        padding:28,width:"100%",maxWidth:900,maxHeight:"90vh",overflowY:"auto",
+                        animation:"fadeIn 0.25s ease",position:"relative"
+                      }}>
+                        <button onClick={()=>setSelectedDT(null)} style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.06)",border:"none",color:"#94a3b8",fontSize:20,cursor:"pointer",width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+
+                        {/* Navegador de informes */}
+                        {selectedRecords.length > 1 && (
+                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,padding:"10px 16px",background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.2)",borderRadius:8}}>
+                            <button onClick={()=>setSelectedDTIndex(i=>Math.max(0,i-1))} disabled={selectedDTIndex===0}
+                              style={{background:"none",border:"none",color:selectedDTIndex===0?"#475569":"#4ade80",fontSize:20,cursor:selectedDTIndex===0?"default":"pointer"}}>◀</button>
+                            <div style={{textAlign:"center"}}>
+                              <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:13,letterSpacing:1}}>INFORME {selectedDTIndex+1} DE {selectedRecords.length}</p>
+                              <p style={{color:"#4ade80",fontSize:12,marginTop:2}}>{currentDT.fechaRegistro||"—"}</p>
+                            </div>
+                            <button onClick={()=>setSelectedDTIndex(i=>Math.min(selectedRecords.length-1,i+1))} disabled={selectedDTIndex===selectedRecords.length-1}
+                              style={{background:"none",border:"none",color:selectedDTIndex===selectedRecords.length-1?"#475569":"#4ade80",fontSize:20,cursor:selectedDTIndex===selectedRecords.length-1?"default":"pointer"}}>▶</button>
+                          </div>
+                        )}
+
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:28}}>
+                          {/* Columna izquierda — datos */}
+                          <div>
+                            <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:26,fontWeight:900,letterSpacing:2,lineHeight:1,marginBottom:4}}>{currentDT.nombre.toUpperCase()}</p>
+                            <p style={{color:"#94a3b8",fontSize:13,marginBottom:20}}>{currentDT.equipoActual||"—"}</p>
+                            {[
+                              ["Scout",currentDT.scout],
+                              ["Estilo",currentDT.estilo||"—"],
+                              ["Forma de Juego",currentDT.formaJuego||"—"],
+                              ["Formación",currentDT.formacion||"—"],
+                              ["Agente",currentDT.agente||"—"],
+                              ["Fecha Nac.",(currentDT.fechaNac||"—").toString().substring(0,10)],
+                              ["Edad",currentDT.fechaNac?age(currentDT.fechaNac)+" años":"—"],
+                              ["Nacionalidad",currentDT.nacionalidad||"—"],
+                              ["Fecha Registro",(currentDT.fechaRegistro||"—").toString().substring(0,10)],
+                              ["Informes totales",selectedRecords.length],
+                            ].map(([k,v])=>(
+                              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                                <span style={{color: k==="Informes totales"?"#4ade80":"#475569",fontSize:12,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>{k.toUpperCase()}</span>
+                                <span style={{color: k==="Informes totales"?"#4ade80":"#e2e8f0",fontSize:13,fontWeight: k==="Informes totales"?700:400}}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Columna derecha — textos */}
+                          <div>
+                            {[
+                              ["Personal",currentDT.personal],
+                              ["Entrenamiento",currentDT.entrenamiento],
+                              ["Cuerpo Técnico",currentDT.cuerpoTecnico],
+                            ].map(([k,v])=>(
+                              <div key={k} style={{marginBottom:16}}>
+                                <p style={{...sectionTitle,marginTop:0}}>{k}</p>
+                                <p style={{color:"#94a3b8",fontSize:13,lineHeight:1.7}}>{v||"Sin información."}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* === FAVORITOS === */}
             {activeTab==="favoritos" && (() => {
               const favInputStyle = {width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"7px 10px",color:"#e2e8f0",fontSize:13,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box"};
