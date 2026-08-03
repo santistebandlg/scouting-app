@@ -411,6 +411,47 @@ export default function ScoutingApp() {
   const [xiFilterScout, setXiFilterScout] = useState("");
   const [xiFilterJornada, setXiFilterJornada] = useState("");
   const [xiFilterLiga, setXiFilterLiga] = useState("");
+  const [listas, setListas] = useState([]);
+  const [listaActiva, setListaActiva] = useState(null);
+  const [showNuevaLista, setShowNuevaLista] = useState(false);
+  const [showNuevaLista2, setShowNuevaLista2] = useState(false);
+  const [nuevaListaNombre, setNuevaListaNombre] = useState("");
+  const [showAddJugador, setShowAddJugador] = useState(false);
+  const [favSearch, setFavSearch] = useState("");
+  const [favPosFilter, setFavPosFilter] = useState("");
+  const [favEquipoFilter, setFavEquipoFilter] = useState("");
+  const [showRegForm, setShowRegForm] = useState(false);
+  const [listaNombre, setListaNombre] = useState("");
+  const [selectedForList, setSelectedForList] = useState([]);
+  const [shortList, setShortList] = useState([]);
+  const [editingListaId, setEditingListaId] = useState(null);
+  const [favForm, setFavForm] = useState({
+    nombre:"", apellido:"", equipo:"", equipoPrestamo:"",
+    fechaNac:"", nacionalidad:"", finContrato:"", finContratoMes:"", posicion:""
+  });
+  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbyjvczAwj4TIOUioSjKw8rZPVH8ql74OEWMEUYxElqH8G5BVWH9yvrDL5UQM0Sw_hRhcw/exec";
+
+  useEffect(() => {
+    const loadFavoritos = async () => {
+      try {
+        const res = await fetch(`${FAVORITOS_URL}?action=readFavoritos`);
+        const data = await res.json();
+        if (data.success) setListas(data.listas || []);
+      } catch(err) { console.error("Error cargando favoritos:", err); }
+    };
+    loadFavoritos();
+  }, []);
+
+  const saveLista = async (lista) => {
+    try {
+      const params = new URLSearchParams({
+        action: "saveFavorito",
+        id: lista.id, nombre: lista.nombre,
+        fecha: lista.fecha, jugadores: JSON.stringify(lista.jugadores)
+      });
+      fetch(`${FAVORITOS_URL}?${params.toString()}`, { method:"GET", mode:"no-cors" });
+    } catch(err) { console.error("Error guardando favorito:", err); }
+  };
   const [dts, setDts] = useState([]);
   const [selectedDT, setSelectedDT] = useState(null);
   const [selectedDTIndex, setSelectedDTIndex] = useState(0);
@@ -458,49 +499,6 @@ export default function ScoutingApp() {
     showNotif(`✓ ${dt.nombre} registrado correctamente.`);
     setDtForm(defaultDTForm);
     setShowDTForm(false);
-  };
-  const [listaActiva, setListaActiva] = useState(null);
-  const [showNuevaLista, setShowNuevaLista] = useState(false);
-  const [showNuevaLista2, setShowNuevaLista2] = useState(false);
-  const [nuevaListaNombre, setNuevaListaNombre] = useState("");
-  const [showAddJugador, setShowAddJugador] = useState(false);
-  const [favSearch, setFavSearch] = useState("");
-  const [favPosFilter, setFavPosFilter] = useState("");
-  const [favEquipoFilter, setFavEquipoFilter] = useState("");
-  const [showRegForm, setShowRegForm] = useState(false);
-  const [listaNombre, setListaNombre] = useState("");
-  const [selectedForList, setSelectedForList] = useState([]);
-  const [shortList, setShortList] = useState([]);
-  const [editingListaId, setEditingListaId] = useState(null);
-  const [favForm, setFavForm] = useState({
-    nombre:"", apellido:"", equipo:"", equipoPrestamo:"",
-    fechaNac:"", nacionalidad:"", finContrato:"", finContratoMes:"", posicion:""
-  });
-
-  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbyjvczAwj4TIOUioSjKw8rZPVH8ql74OEWMEUYxElqH8G5BVWH9yvrDL5UQM0Sw_hRhcw/exec";
-
-  useEffect(() => {
-    const loadFavoritos = async () => {
-      try {
-        const res = await fetch(`${FAVORITOS_URL}?action=readFavoritos`);
-        const data = await res.json();
-        if (data.success) setListas(data.listas || []);
-      } catch(err) { console.error("Error cargando favoritos:", err); }
-    };
-    loadFavoritos();
-  }, []);
-
-  const saveLista = async (lista) => {
-    try {
-      const params = new URLSearchParams({
-        action: "saveFavorito",
-        id: lista.id,
-        nombre: lista.nombre,
-        fecha: lista.fecha,
-        jugadores: JSON.stringify(lista.jugadores)
-      });
-      fetch(`${FAVORITOS_URL}?${params.toString()}`, { method:"GET", mode:"no-cors" });
-    } catch(err) { console.error("Error guardando favorito:", err); }
   };
 
   const crearLista = () => {
