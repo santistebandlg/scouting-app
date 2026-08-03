@@ -371,7 +371,7 @@ export default function ScoutingApp() {
   const [showEquipoPrestSuggestions, setShowEquipoPrestSuggestions] = useState(false);
   const [idealXI, setIdealXI] = useState({});
   const [assigningSlot, setAssigningSlot] = useState(null);
-  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbyjvczAwj4TIOUioSjKw8rZPVH8ql74OEWMEUYxElqH8G5BVWH9yvrDL5UQM0Sw_hRhcw/exec");
+  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbxBqCjkhWWKFblA5NJj7HoJMJNAK2fBYILxhmsy9uYuClkgx4mvwQ4xoyR7N9gGokzdcw/exec");
   const [sheetsConnected, setSheetsConnected] = useState(true);
   const [notification, setNotification] = useState(null);
   const [selectingPos, setSelectingPos] = useState(false);
@@ -382,7 +382,7 @@ export default function ScoutingApp() {
   useEffect(() => {
     const loadPlayers = async () => {
       try {
-        const url = "https://script.google.com/macros/s/AKfycbyjvczAwj4TIOUioSjKw8rZPVH8ql74OEWMEUYxElqH8G5BVWH9yvrDL5UQM0Sw_hRhcw/exec?action=read";
+        const url = "https://script.google.com/macros/s/AKfycbxBqCjkhWWKFblA5NJj7HoJMJNAK2fBYILxhmsy9uYuClkgx4mvwQ4xoyR7N9gGokzdcw/exec?action=read";
         const res = await fetch(url, { method: "GET" });
         const data = await res.json();
         if (data.success && data.players.length > 0) {
@@ -429,7 +429,7 @@ export default function ScoutingApp() {
     nombre:"", apellido:"", equipo:"", equipoPrestamo:"",
     fechaNac:"", nacionalidad:"", finContrato:"", finContratoMes:"", posicion:""
   });
-  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbyjvczAwj4TIOUioSjKw8rZPVH8ql74OEWMEUYxElqH8G5BVWH9yvrDL5UQM0Sw_hRhcw/exec";
+  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbxBqCjkhWWKFblA5NJj7HoJMJNAK2fBYILxhmsy9uYuClkgx4mvwQ4xoyR7N9gGokzdcw/exec";
 
   useEffect(() => {
     const loadFavoritos = async () => {
@@ -458,7 +458,7 @@ export default function ScoutingApp() {
   const [dtFilterScout, setDtFilterScout] = useState("");
   const [dtSearch, setDtSearch] = useState("");
   const [showDTForm, setShowDTForm] = useState(false);
-  const DT_URL = "https://script.google.com/macros/s/AKfycbyjvczAwj4TIOUioSjKw8rZPVH8ql74OEWMEUYxElqH8G5BVWH9yvrDL5UQM0Sw_hRhcw/exec";
+  const DT_URL = "https://script.google.com/macros/s/AKfycbxBqCjkhWWKFblA5NJj7HoJMJNAK2fBYILxhmsy9uYuClkgx4mvwQ4xoyR7N9gGokzdcw/exec";
   const defaultDTForm = {
     nombre:"", estilo:"", formacion:"", agente:"", scout:"",
     fechaNac:"", nacionalidad:"", equipoActual:"", formaJuego:"",
@@ -2655,6 +2655,17 @@ export default function ScoutingApp() {
                                 <button className="btn-sec" style={{padding:"3px 8px",fontSize:10}}
                                   onClick={()=>exportFavoritosPDF(l,[])}
                                   title="Exportar PDF">↓</button>
+                                <button style={{padding:"3px 8px",fontSize:10,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:4,color:"#ef4444",cursor:"pointer"}}
+                                  onClick={()=>{
+                                    if(window.confirm(`¿Eliminar la lista "${l.nombre}"?`)) {
+                                      setListas(prev=>prev.filter(x=>x.id!==l.id));
+                                      if(editingListaId===l.id){setEditingListaId(null);setSelectedForList([]);setListaNombre("");}
+                                      // Eliminar del Sheets
+                                      const params = new URLSearchParams({ action:"deleteFavorito", id: l.id });
+                                      fetch(`${FAVORITOS_URL}?${params.toString()}`, { method:"GET", mode:"no-cors" });
+                                    }
+                                  }}
+                                  title="Eliminar lista">🗑</button>
                               </div>
                             </div>
                           ))}
