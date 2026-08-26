@@ -371,7 +371,7 @@ export default function ScoutingApp() {
   const [showEquipoPrestSuggestions, setShowEquipoPrestSuggestions] = useState(false);
   const [idealXI, setIdealXI] = useState({});
   const [assigningSlot, setAssigningSlot] = useState(null);
-  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbzzgiPKzTj-Eat5FVIBGQp4c9toQPF8322a_Sbo9hj7BSyq77KB3ULlzkHvdtqxhFQWag/exec");
+  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbxVQ8LJKvACT5u2abphHnRojIjEoUFzhuJ8KBuJIi7J-wp_HPiGATLgLcKnYrqHQmvcTw/exec");
   const [sheetsConnected, setSheetsConnected] = useState(true);
   const [notification, setNotification] = useState(null);
   const [selectingPos, setSelectingPos] = useState(false);
@@ -382,7 +382,7 @@ export default function ScoutingApp() {
   useEffect(() => {
     const loadPlayers = async () => {
       try {
-        const url = "https://script.google.com/macros/s/AKfycbzzgiPKzTj-Eat5FVIBGQp4c9toQPF8322a_Sbo9hj7BSyq77KB3ULlzkHvdtqxhFQWag/exec?action=read";
+        const url = "https://script.google.com/macros/s/AKfycbxVQ8LJKvACT5u2abphHnRojIjEoUFzhuJ8KBuJIi7J-wp_HPiGATLgLcKnYrqHQmvcTw/exec?action=read";
         const res = await fetch(url, { method: "GET" });
         const data = await res.json();
         if (data.success && data.players.length > 0) {
@@ -429,7 +429,7 @@ export default function ScoutingApp() {
     nombre:"", apellido:"", equipo:"", equipoPrestamo:"",
     fechaNac:"", nacionalidad:"", finContrato:"", finContratoMes:"", posicion:""
   });
-  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbzzgiPKzTj-Eat5FVIBGQp4c9toQPF8322a_Sbo9hj7BSyq77KB3ULlzkHvdtqxhFQWag/exec";
+  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbxVQ8LJKvACT5u2abphHnRojIjEoUFzhuJ8KBuJIi7J-wp_HPiGATLgLcKnYrqHQmvcTw/exec";
 
   useEffect(() => {
     const loadFavoritos = async () => {
@@ -458,7 +458,7 @@ export default function ScoutingApp() {
   const [dtFilterScout, setDtFilterScout] = useState("");
   const [dtSearch, setDtSearch] = useState("");
   const [showDTForm, setShowDTForm] = useState(false);
-  const DT_URL = "https://script.google.com/macros/s/AKfycbzzgiPKzTj-Eat5FVIBGQp4c9toQPF8322a_Sbo9hj7BSyq77KB3ULlzkHvdtqxhFQWag/exec";
+  const DT_URL = "https://script.google.com/macros/s/AKfycbxVQ8LJKvACT5u2abphHnRojIjEoUFzhuJ8KBuJIi7J-wp_HPiGATLgLcKnYrqHQmvcTw/exec";
   const defaultDTForm = {
     nombre:"", estilo:"", formacion:"", agente:"", scout:"",
     fechaNac:"", nacionalidad:"", equipoActual:"", formaJuego:"",
