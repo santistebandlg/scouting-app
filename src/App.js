@@ -367,6 +367,9 @@ export default function ScoutingApp() {
   const [selectedRecordIndex, setSelectedRecordIndex] = useState(0);
   const [perfilFilterScout, setPerfilFilterScout] = useState("");
   const [perfilSearch, setPerfilSearch] = useState("");
+  const [perfilPosFilter, setPerfilPosFilter] = useState([]);
+  const [perfilEdadMin, setPerfilEdadMin] = useState("");
+  const [perfilEdadMax, setPerfilEdadMax] = useState("");
   const [showEquipoSuggestions, setShowEquipoSuggestions] = useState(false);
   const [showEquipoPrestSuggestions, setShowEquipoPrestSuggestions] = useState(false);
   const [idealXI, setIdealXI] = useState({});
@@ -1806,7 +1809,7 @@ export default function ScoutingApp() {
                 grouped[key].push(p);
               });
 
-              // Filtrar por scout y búsqueda, ordenar del más reciente al más antiguo
+              // Filtrar por scout, búsqueda y posición, ordenar del más reciente al más antiguo
               const uniquePlayers = Object.values(grouped).filter(records => {
                 const matchScout = !perfilFilterScout || records.some(r => r.scout === perfilFilterScout);
                 const matchSearch = !perfilSearch || records.some(r =>
@@ -1814,12 +1817,19 @@ export default function ScoutingApp() {
                   (r.equipo||"").toLowerCase().includes(perfilSearch.toLowerCase()) ||
                   (r.posicion||"").toLowerCase().includes(perfilSearch.toLowerCase())
                 );
-                return matchScout && matchSearch;
+                const matchPos = perfilPosFilter.length===0 || records.some(r => perfilPosFilter.includes((r.posicion||"").trim()));
+                const edad = records[0].fechaNac ? Math.floor((Date.now()-new Date(records[0].fechaNac).getTime())/(1000*60*60*24*365.25)) : null;
+                const matchEdadMin = !perfilEdadMin || (edad && edad >= parseInt(perfilEdadMin));
+                const matchEdadMax = !perfilEdadMax || (edad && edad <= parseInt(perfilEdadMax));
+                return matchScout && matchSearch && matchPos && matchEdadMin && matchEdadMax;
               }).sort((a, b) => {
                 const maxA = Math.max(...a.map(r => r.id || 0));
                 const maxB = Math.max(...b.map(r => r.id || 0));
                 return maxB - maxA;
               });
+
+              // Posiciones únicas para el multiselector
+              const posicionesPerfilUnicas = [...new Set(players.map(p=>(p.posicion||"").trim()).filter(Boolean))].sort();
 
               // Registros del jugador seleccionado
               const selectedKey = selectedPlayer ? `${selectedPlayer.nombre}|${selectedPlayer.apellido}` : null;
@@ -1831,7 +1841,7 @@ export default function ScoutingApp() {
                 <p style={sectionTitle}>Jugadores Registrados</p>
 
                 {/* Filtros */}
-                <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"flex-end",flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:12,marginBottom:12,alignItems:"flex-end",flexWrap:"wrap"}}>
                   <div style={{flex:1,minWidth:200}}>
                     <label style={labelStyle}>Buscar jugador</label>
                     <input
@@ -1848,14 +1858,41 @@ export default function ScoutingApp() {
                       {SCOUTS.map(s=><option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
-                  {(perfilFilterScout || perfilSearch) && (
-                    <button className="btn-sec" onClick={()=>{setPerfilFilterScout("");setPerfilSearch("");setSelectedPlayer(null);}}>
+                  {(perfilFilterScout || perfilSearch || perfilPosFilter.length>0 || perfilEdadMin || perfilEdadMax) && (
+                    <button className="btn-sec" onClick={()=>{setPerfilFilterScout("");setPerfilSearch("");setPerfilPosFilter([]);setPerfilEdadMin("");setPerfilEdadMax("");setSelectedPlayer(null);}}>
                       Limpiar ×
                     </button>
                   )}
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <input style={{...inputStyle,width:70}} placeholder="Edad mín" type="number"
+                      value={perfilEdadMin} onChange={e=>{setPerfilEdadMin(e.target.value);setSelectedPlayer(null);}}/>
+                    <span style={{color:"#475569",fontSize:12}}>—</span>
+                    <input style={{...inputStyle,width:70}} placeholder="Edad máx" type="number"
+                      value={perfilEdadMax} onChange={e=>{setPerfilEdadMax(e.target.value);setSelectedPlayer(null);}}/>
+                  </div>
                   <span style={{color:"#64748b",fontSize:12,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,paddingBottom:2}}>
                     {uniquePlayers.length} JUGADOR{uniquePlayers.length!==1?"ES":""}
                   </span>
+                </div>
+
+                {/* Multiselector posición */}
+                <div style={{marginBottom:16}}>
+                  <label style={labelStyle}>Posición</label>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:4}}>
+                    {posicionesPerfilUnicas.map(pos=>(
+                      <button key={pos}
+                        onClick={()=>{setPerfilPosFilter(prev=>prev.includes(pos)?prev.filter(x=>x!==pos):[...prev,pos]);setSelectedPlayer(null);}}
+                        style={{
+                          padding:"2px 8px",borderRadius:4,fontSize:10,cursor:"pointer",
+                          fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,
+                          background: perfilPosFilter.includes(pos)?"rgba(74,222,128,0.2)":"rgba(255,255,255,0.04)",
+                          border:`1px solid ${perfilPosFilter.includes(pos)?"rgba(74,222,128,0.5)":"rgba(255,255,255,0.1)"}`,
+                          color: perfilPosFilter.includes(pos)?"#4ade80":"#64748b"
+                        }}>
+                        {pos}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {uniquePlayers.length===0 && (
                   <div style={{textAlign:"center",padding:"60px 0",color:"#475569"}}>
