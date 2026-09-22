@@ -452,7 +452,15 @@ export default function ScoutingApp() {
       fetch(`${FAVORITOS_URL}?${params.toString()}`, { method:"GET", mode:"no-cors" });
     } catch(err) { console.error("Error guardando favorito:", err); }
   };
-  const [dts, setDts] = useState([]);
+  const [campogramaAsignaciones, setCampogramaAsignaciones] = useState({});
+  const [campogramaSearch, setCampogramaSearch] = useState("");
+  const [campogramaDragPlayer, setCampogramaDragPlayer] = useState(null);
+  const [campogramaPosFilter, setCampogramaPosFilter] = useState([]);
+  const [campogramaEdadMin, setCampogramaEdadMin] = useState("");
+  const [campogramaEdadMax, setCampogramaEdadMax] = useState("");
+  const [campogramaLabels, setCampogramaLabels] = useState({});
+  const [campogramaEditingLabel, setCampogramaEditingLabel] = useState(null);
+  const campogramaRef = useRef(null);
   const [selectedDT, setSelectedDT] = useState(null);
   const [selectedDTIndex, setSelectedDTIndex] = useState(0);
   const [dtFilterScout, setDtFilterScout] = useState("");
@@ -799,6 +807,85 @@ export default function ScoutingApp() {
     if (ratio >= 1) { w = maxSize; h = maxSize / ratio; }
     else { h = maxSize; w = maxSize * ratio; }
     doc.addImage(logo.data, "PNG", cx - w/2, cy - h/2, w, h);
+  };
+
+  const exportCampogramaPDF = async (asignaciones, labels, posiciones) => {
+    showNotif("Generando PDF...");
+    const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
+    const W=297, H=210;
+
+    // Fondo
+    doc.setFillColor(10,15,13); doc.rect(0,0,W,H,"F");
+
+    // Header
+    doc.setFillColor(13,71,35); doc.rect(0,0,W,18,"F");
+    const necaxaLogo = await loadImageForPDF("Necaxa");
+    if(necaxaLogo) addLogoToPDF(doc, necaxaLogo, 11, 9, 12);
+    doc.setTextColor(74,222,128); doc.setFont("helvetica","bold"); doc.setFontSize(10);
+    doc.text("DEPARTAMENTO DE INTELIGENCIA DEPORTIVA", W/2, 8, {align:"center"});
+    doc.setFontSize(8); doc.setTextColor(226,232,240);
+    doc.text("SCOUTING CLUB NECAXA", W/2, 14, {align:"center"});
+    doc.setFontSize(7); doc.setTextColor(100,116,139);
+    doc.text(new Date().toLocaleDateString("es-ES"), W-6, 9, {align:"right"});
+
+    const fX=4, fY=21, fW=W-8, fH=H-fY-4;
+    doc.setFillColor(21,128,61); doc.rect(fX,fY,fW,fH,"F");
+    for(let i=0;i<10;i++){
+      if(i%2===0) doc.setFillColor(18,115,55);
+      else doc.setFillColor(21,128,61);
+      doc.rect(fX,fY+i*(fH/10),fW,fH/10,"F");
+    }
+    doc.setDrawColor(255,255,255); doc.setLineWidth(0.5);
+    doc.rect(fX,fY,fW,fH);
+    doc.line(fX,fY+fH/2,fX+fW,fY+fH/2);
+    doc.circle(fX+fW/2,fY+fH/2,9);
+    doc.setFillColor(255,255,255); doc.circle(fX+fW/2,fY+fH/2,0.8,"F"); doc.setFillColor(21,128,61);
+    doc.rect(fX+(fW-fW*0.58)/2,fY,fW*0.58,fH*0.18);
+    doc.rect(fX+(fW-fW*0.58)/2,fY+fH-fH*0.18,fW*0.58,fH*0.18);
+    doc.rect(fX+(fW-fW*0.27)/2,fY,fW*0.27,fH*0.07);
+    doc.rect(fX+(fW-fW*0.27)/2,fY+fH-fH*0.07,fW*0.27,fH*0.07);
+
+    const logoCacheC={};
+    const allJC=posiciones.flatMap(pos=>(asignaciones[pos.id]||[]));
+    await Promise.all(allJC.map(async j=>{
+      const eq=(j.equipoPrestamo||j.equipo||"").trim();
+      if(eq&&!logoCacheC[eq]) logoCacheC[eq]=await loadImageForPDF(eq);
+    }));
+
+    for(const pos of posiciones){
+      const jugadores=asignaciones[pos.id]||[];
+      if(!jugadores.length) continue;
+      const label=labels[pos.id]||pos.label;
+      const cx=fX+(pos.x/100)*fW;
+      const cy=fY+(pos.y/100)*fH;
+      const tW=46, rowH=7.2, headerH=6;
+      const tH=headerH+jugadores.length*rowH;
+      const tX=Math.min(Math.max(cx-tW/2,fX+1),fX+fW-tW-1);
+      const tY=Math.min(Math.max(cy-tH/2,fY+1),fY+fH-tH-1);
+      doc.setFillColor(0,0,0); doc.setGState(doc.GState({opacity:0.82}));
+      doc.rect(tX,tY,tW,tH,"F");
+      doc.setGState(doc.GState({opacity:1}));
+      doc.setDrawColor(74,222,128); doc.setLineWidth(0.25);
+      doc.rect(tX,tY,tW,tH);
+      doc.setFillColor(13,71,35); doc.rect(tX,tY,tW,headerH,"F");
+      doc.setTextColor(74,222,128); doc.setFont("helvetica","bold"); doc.setFontSize(4.5);
+      doc.text(label.toUpperCase(),tX+tW/2,tY+4,{align:"center"});
+      jugadores.forEach((j,ji)=>{
+        const ry=tY+headerH+ji*rowH;
+        if(ji%2===0){doc.setFillColor(20,30,25);doc.rect(tX,ry,tW,rowH,"F");}
+        const eq=(j.equipoPrestamo||j.equipo||"").trim();
+        const logo=logoCacheC[eq];
+        if(logo) addLogoToPDF(doc,logo,tX+2.5,ry+rowH/2,4);
+        const edad=j.fechaNac?Math.floor((Date.now()-new Date(j.fechaNac).getTime())/(1000*60*60*24*365.25)):null;
+        doc.setTextColor(226,232,240); doc.setFont("helvetica","normal"); doc.setFontSize(5.5);
+        doc.text(`${j.nombre.trim()} ${j.apellido.trim()}`.substring(0,20),tX+7.5,ry+2.5,{maxWidth:tW-16});
+        if(edad){doc.setTextColor(150,150,150);doc.setFontSize(3.5);doc.text(`${(j.fechaNac||"").toString().substring(0,10)} (${edad})`,tX+7.5,ry+4.8,{maxWidth:tW-16});}
+        if(j.nacionalidad){doc.setTextColor(100,116,139);doc.setFontSize(3.5);doc.text(j.nacionalidad.substring(0,3).toUpperCase(),tX+tW-1.5,ry+2.5,{align:"right"});}
+      });
+    }
+
+    doc.save("campograma.pdf");
+    showNotif("✓ PDF exportado.");
   };
 
   const exportXIToPDF = async (filteredPlayers, scout, jornada, liga) => {
@@ -1192,6 +1279,7 @@ export default function ScoutingApp() {
               {id:"xi",icon:"◈",label:"11 Ideal"},
               {id:"perfil",icon:"◉",label:"Perfil del Jugador"},
               {id:"dts",icon:"▲",label:"DTs Scouteados"},
+              {id:"campograma",icon:"◫",label:"Campograma"},
               {id:"favoritos",icon:"★",label:"Favoritos"},
             ].map(item=>(
               <div key={item.id}
@@ -1232,7 +1320,7 @@ export default function ScoutingApp() {
           }}>
             <div>
               <p style={{color:"#e2e8f0",fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,letterSpacing:2}}>
-                {activeTab==="registrar"?"REGISTRAR JUGADOR":activeTab==="xi"?"11 IDEAL":activeTab==="dts"?"DTs SCOUTEADOS":activeTab==="favoritos"?"FAVORITOS":"PERFIL DEL JUGADOR"}
+                {activeTab==="registrar"?"REGISTRAR JUGADOR":activeTab==="xi"?"11 IDEAL":activeTab==="dts"?"DTs SCOUTEADOS":activeTab==="campograma"?"CAMPOGRAMA":activeTab==="favoritos"?"FAVORITOS":"PERFIL DEL JUGADOR"}
               </p>
               <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:3,marginTop:2}}>
                 {loading ? "CARGANDO JUGADORES..." : `${players.length} JUGADORES REGISTRADOS`}
@@ -2228,6 +2316,268 @@ export default function ScoutingApp() {
                       </div>
                     </div>
                   )}
+                </div>
+              );
+            })()}
+
+            {/* === CAMPOGRAMA === */}
+            {activeTab==="campograma" && (() => {
+              const CAMPO_POSITIONS = [
+                { id:"DC",    label:"Delantero",             x:50,  y:8  },
+                { id:"EI",    label:"Extremo Izquierdo",     x:8,   y:20 },
+                { id:"ED",    label:"Extremo Derecho",       x:92,  y:20 },
+                { id:"MOF",   label:"Mediocentro Ofensivo",  x:50,  y:28 },
+                { id:"MMX",   label:"Mediocentro Mixto",     x:78,  y:38 },
+                { id:"MCI2",  label:"Mediocentro Ofensivo",  x:28,  y:38 },
+                { id:"MDF",   label:"Mediocentro Defensivo", x:50,  y:52 },
+                { id:"LI",    label:"Lateral Izquierdo",     x:8,   y:62 },
+                { id:"LD",    label:"Lateral Derecho",       x:92,  y:62 },
+                { id:"DFCI2", label:"Central Izquierdo",     x:30,  y:74 },
+                { id:"DFCD2", label:"Central Derecho",       x:70,  y:74 },
+                { id:"POR",   label:"Portero",               x:50,  y:88 },
+              ];
+
+              // Jugadores asignados (IDs)
+              const assignedIds = new Set(Object.values(campogramaAsignaciones).flat().map(p=>p.id));
+
+              // Filtro de lista
+              const uniquePlayers = Object.values(
+                players.reduce((acc,p)=>{
+                  const k=`${p.nombre.trim()} ${p.apellido.trim()}`;
+                  if(!acc[k]) acc[k]=p; return acc;
+                },{})
+              ).filter(p=>{
+                const q=campogramaSearch.toLowerCase();
+                const edad = p.fechaNac ? Math.floor((Date.now()-new Date(p.fechaNac).getTime())/(1000*60*60*24*365.25)) : null;
+                const matchSearch = !q||`${p.nombre} ${p.apellido}`.toLowerCase().includes(q)||(p.equipo||"").toLowerCase().includes(q);
+                const matchPos = campogramaPosFilter.length===0 || campogramaPosFilter.includes((p.posicion||"").trim());
+                const matchEdadMin = !campogramaEdadMin || (edad && edad >= parseInt(campogramaEdadMin));
+                const matchEdadMax = !campogramaEdadMax || (edad && edad <= parseInt(campogramaEdadMax));
+                return matchSearch && matchPos && matchEdadMin && matchEdadMax;
+              }).sort((a,b)=>`${a.nombre} ${a.apellido}`.localeCompare(`${b.nombre} ${b.apellido}`));
+
+              // Posiciones únicas para el filtro
+              const posicionesUnicas = [...new Set(players.map(p=>(p.posicion||"").trim()).filter(Boolean))].sort();
+
+              // Label editable de cada posición
+              const getPosLabel = (posId, defaultLabel) => campogramaLabels[posId] || defaultLabel;
+
+              return (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:16,height:"calc(100vh - 130px)"}}>
+
+                  {/* Campo */}
+                  <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <button className="btn-primary" style={{padding:"8px 16px",fontSize:13}}
+                        onClick={()=>exportCampogramaPDF(campogramaAsignaciones, campogramaLabels, CAMPO_POSITIONS)}>↓ Exportar PDF</button>
+                      <button className="btn-sec" style={{padding:"8px 16px",fontSize:13}}
+                        onClick={()=>setCampogramaAsignaciones({})}>Limpiar cancha</button>
+                    </div>
+
+                    <div ref={campogramaRef} style={{
+                      position:"relative", flex:1,
+                      background:"linear-gradient(180deg,#15803d 0%,#166534 50%,#15803d 100%)",
+                      borderRadius:8, border:"2px solid rgba(255,255,255,0.2)",
+                      overflow:"hidden", minHeight:700
+                    }}
+                      onDragOver={e=>e.preventDefault()}
+                    >
+                      {/* Líneas del campo */}
+                      <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%"}} viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <rect x="5" y="2" width="90" height="96" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.4"/>
+                        <line x1="5" y1="50" x2="95" y2="50" stroke="rgba(255,255,255,0.5)" strokeWidth="0.4"/>
+                        <circle cx="50" cy="50" r="8" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.4"/>
+                        <rect x="35" y="2" width="30" height="14" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="0.3"/>
+                        <rect x="35" y="84" width="30" height="14" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="0.3"/>
+                        <rect x="43" y="2" width="14" height="6" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3"/>
+                        <rect x="43" y="92" width="14" height="6" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3"/>
+                      </svg>
+
+                      {/* Posiciones */}
+                      {CAMPO_POSITIONS.map(pos=>{
+                        const jugadores=campogramaAsignaciones[pos.id]||[];
+                        return (
+                          <div key={pos.id}
+                            style={{
+                              position:"absolute",
+                              left:`${pos.x}%`, top:`${pos.y}%`,
+                              transform:"translate(-50%,-50%)",
+                              minWidth:90, zIndex:10
+                            }}
+                            onDragOver={e=>e.preventDefault()}
+                            onDrop={e=>{
+                              e.preventDefault();
+                              if(!campogramaDragPlayer) return;
+                              const p=campogramaDragPlayer;
+                              // Quitar de posición anterior
+                              const newAsig={};
+                              Object.keys(campogramaAsignaciones).forEach(k=>{
+                                newAsig[k]=(campogramaAsignaciones[k]||[]).filter(j=>j.id!==p.id);
+                              });
+                              // Agregar a nueva posición
+                              newAsig[pos.id]=[...(newAsig[pos.id]||[]),p];
+                              setCampogramaAsignaciones(newAsig);
+                              setCampogramaDragPlayer(null);
+                            }}
+                          >
+                            {/* Mini tabla */}
+                            <div style={{
+                              background:"rgba(0,0,0,0.75)",
+                              border:"1px solid rgba(74,222,128,0.5)",
+                              borderRadius:4, overflow:"hidden", minWidth:90
+                            }}>
+                              {/* Header posición — editable */}
+                              <div style={{
+                                background:"rgba(13,71,35,0.9)",
+                                padding:"2px 6px", textAlign:"center",
+                                cursor:"pointer"
+                              }} onDoubleClick={()=>setCampogramaEditingLabel(pos.id)}>
+                                {campogramaEditingLabel===pos.id ? (
+                                  <input
+                                    autoFocus
+                                    defaultValue={getPosLabel(pos.id, pos.label)}
+                                    style={{background:"transparent",border:"none",outline:"none",color:"#4ade80",fontSize:9,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,fontWeight:700,width:"100%",textAlign:"center"}}
+                                    onBlur={e=>{
+                                      setCampogramaLabels(prev=>({...prev,[pos.id]:e.target.value||pos.label}));
+                                      setCampogramaEditingLabel(null);
+                                    }}
+                                    onKeyDown={e=>{
+                                      if(e.key==="Enter"){
+                                        setCampogramaLabels(prev=>({...prev,[pos.id]:e.target.value||pos.label}));
+                                        setCampogramaEditingLabel(null);
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <span style={{color:"#4ade80",fontSize:9,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,fontWeight:700}}>
+                                    {getPosLabel(pos.id, pos.label).toUpperCase()}
+                                    <span style={{color:"rgba(74,222,128,0.4)",fontSize:7,marginLeft:3}}>✎</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Jugadores asignados */}
+                              {jugadores.map(j=>(
+                                <div key={j.id} style={{
+                                  display:"flex",alignItems:"center",gap:4,
+                                  padding:"2px 5px",borderBottom:"1px solid rgba(255,255,255,0.06)",
+                                  background:"rgba(0,0,0,0.4)"
+                                }}>
+                                  <ShieldImage equipo={(j.equipoPrestamo||j.equipo||"").trim()} size={14}/>
+                                  <div style={{flex:1,minWidth:0}}>
+                                    <span style={{color:"#e2e8f0",fontSize:9,fontFamily:"'Barlow',sans-serif",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",maxWidth:62}}>
+                                      {j.nombre.trim()} {j.apellido.trim()}
+                                    </span>
+                                    {j.fechaNac && (
+                                      <span style={{color:"#64748b",fontSize:8,display:"block"}}>
+                                        {(j.fechaNac||"").toString().substring(0,10)} ({Math.floor((Date.now()-new Date(j.fechaNac).getTime())/(1000*60*60*24*365.25))})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button onClick={()=>{
+                                    setCampogramaAsignaciones(prev=>({
+                                      ...prev,
+                                      [pos.id]:(prev[pos.id]||[]).filter(x=>x.id!==j.id)
+                                    }));
+                                  }} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:10,padding:0,marginLeft:"auto",flexShrink:0,lineHeight:1}}
+                                  onMouseEnter={e=>e.target.style.color="#ef4444"}
+                                  onMouseLeave={e=>e.target.style.color="#475569"}>×</button>
+                                </div>
+                              ))}
+
+                              {/* Drop zone vacío */}
+                              {jugadores.length===0 && (
+                                <div style={{padding:"4px 6px",textAlign:"center"}}>
+                                  <span style={{color:"rgba(255,255,255,0.2)",fontSize:8}}>Arrastra aquí</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Lista de jugadores */}
+                  <div style={{background:"#0d1a12",borderRadius:10,border:"1px solid rgba(255,255,255,0.07)",padding:12,display:"flex",flexDirection:"column",gap:8,overflow:"hidden"}}>
+                    <p style={{color:"#4ade80",fontFamily:"'Barlow Condensed',sans-serif",fontSize:12,letterSpacing:2}}>JUGADORES</p>
+                    <input style={inputStyle} placeholder="Buscar jugador o equipo..."
+                      value={campogramaSearch} onChange={e=>setCampogramaSearch(e.target.value)}/>
+
+                    {/* Multi-select posiciones */}
+                    <div>
+                      <p style={{color:"#64748b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,marginBottom:4}}>POSICIÓN</p>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                        {posicionesUnicas.map(pos=>(
+                          <button key={pos}
+                            onClick={()=>setCampogramaPosFilter(prev=>prev.includes(pos)?prev.filter(x=>x!==pos):[...prev,pos])}
+                            style={{
+                              padding:"2px 8px",borderRadius:4,fontSize:10,cursor:"pointer",
+                              fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,
+                              background: campogramaPosFilter.includes(pos)?"rgba(74,222,128,0.2)":"rgba(255,255,255,0.04)",
+                              border:`1px solid ${campogramaPosFilter.includes(pos)?"rgba(74,222,128,0.5)":"rgba(255,255,255,0.1)"}`,
+                              color: campogramaPosFilter.includes(pos)?"#4ade80":"#64748b"
+                            }}>
+                            {pos}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                      <input style={{...inputStyle,width:"50%"}} placeholder="Edad mín" type="number"
+                        value={campogramaEdadMin} onChange={e=>setCampogramaEdadMin(e.target.value)}/>
+                      <span style={{color:"#475569",fontSize:12}}>—</span>
+                      <input style={{...inputStyle,width:"50%"}} placeholder="Edad máx" type="number"
+                        value={campogramaEdadMax} onChange={e=>setCampogramaEdadMax(e.target.value)}/>
+                    </div>
+                    {(campogramaSearch||campogramaPosFilter.length>0||campogramaEdadMin||campogramaEdadMax) && (
+                      <button className="btn-sec" style={{padding:"4px 10px",fontSize:11}} onClick={()=>{setCampogramaSearch("");setCampogramaPosFilter([]);setCampogramaEdadMin("");setCampogramaEdadMax("");}}>
+                        Limpiar filtros ×
+                      </button>
+                    )}
+                    <p style={{color:"#475569",fontSize:10}}>{uniquePlayers.filter(p=>!assignedIds.has(p.id)).length} disponibles · arrastra al campo</p>
+                    <div style={{overflowY:"auto",flex:1}}>
+                      {uniquePlayers.map(p=>{
+                        const isAssigned=assignedIds.has(p.id);
+                        const edad = p.fechaNac ? Math.floor((Date.now()-new Date(p.fechaNac).getTime())/(1000*60*60*24*365.25)) : null;
+                        const fechaNacClean = (p.fechaNac||"").toString().substring(0,10);
+                        const flagCode = getNacionalidadCode(p.nacionalidad||"");
+                        return (
+                          <div key={p.id}
+                            draggable={!isAssigned}
+                            onDragStart={()=>setCampogramaDragPlayer(p)}
+                            onDragEnd={()=>setCampogramaDragPlayer(null)}
+                            style={{
+                              display:"flex",alignItems:"center",gap:8,
+                              padding:"7px 8px",borderRadius:6,marginBottom:4,
+                              background: isAssigned?"rgba(74,222,128,0.06)":"rgba(255,255,255,0.03)",
+                              border:`1px solid ${isAssigned?"rgba(74,222,128,0.2)":"rgba(255,255,255,0.06)"}`,
+                              cursor: isAssigned?"default":"grab",
+                              opacity: isAssigned?0.5:1,
+                              transition:"all 0.15s"
+                            }}>
+                            <ShieldImage equipo={(p.equipoPrestamo||p.equipo||"").trim()} size={20}/>
+                            <div style={{flex:1,minWidth:0}}>
+                              <p style={{color: isAssigned?"#4ade80":"#e2e8f0",fontSize:12,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                                {p.nombre.trim()} {p.apellido.trim()}
+                              </p>
+                              <p style={{color:"#475569",fontSize:10,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                                {p.posicion} · {p.equipo||"—"}
+                              </p>
+                              <div style={{display:"flex",alignItems:"center",gap:4,marginTop:2}}>
+                                {p.nacionalidad && <img src={`https://flagcdn.com/24x18/${flagCode}.png`} alt="" style={{width:14,height:10,objectFit:"cover",borderRadius:1}} onError={e=>e.target.style.display="none"}/>}
+                                {fechaNacClean && fechaNacClean!=="—" && fechaNacClean.length>=8 && (
+                                  <span style={{color:"#64748b",fontSize:9}}>{fechaNacClean} {edad?`(${edad})`:"" }</span>
+                                )}
+                              </div>
+                            </div>
+                            {isAssigned && <span style={{color:"#4ade80",fontSize:9,flexShrink:0}}>✓</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               );
             })()}
