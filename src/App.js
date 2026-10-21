@@ -374,7 +374,7 @@ export default function ScoutingApp() {
   const [showEquipoPrestSuggestions, setShowEquipoPrestSuggestions] = useState(false);
   const [idealXI, setIdealXI] = useState({});
   const [assigningSlot, setAssigningSlot] = useState(null);
-  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbxVQ8LJKvACT5u2abphHnRojIjEoUFzhuJ8KBuJIi7J-wp_HPiGATLgLcKnYrqHQmvcTw/exec");
+  const [sheetsUrl, setSheetsUrl] = useState("https://script.google.com/macros/s/AKfycbxFKxac9DuYV7sgPm-37nBF3ry0K-LNfGbWgRzYh7DdFRCxvI2nBswyqRBB9N1ZWjVPdQ/exec");
   const [sheetsConnected, setSheetsConnected] = useState(true);
   const [notification, setNotification] = useState(null);
   const [selectingPos, setSelectingPos] = useState(false);
@@ -385,7 +385,7 @@ export default function ScoutingApp() {
   useEffect(() => {
     const loadPlayers = async () => {
       try {
-        const url = "https://script.google.com/macros/s/AKfycbxVQ8LJKvACT5u2abphHnRojIjEoUFzhuJ8KBuJIi7J-wp_HPiGATLgLcKnYrqHQmvcTw/exec?action=read";
+        const url = "https://script.google.com/macros/s/AKfycbxFKxac9DuYV7sgPm-37nBF3ry0K-LNfGbWgRzYh7DdFRCxvI2nBswyqRBB9N1ZWjVPdQ/exec?action=read";
         const res = await fetch(url, { method: "GET" });
         const data = await res.json();
         if (data.success && data.players.length > 0) {
@@ -432,7 +432,7 @@ export default function ScoutingApp() {
     nombre:"", apellido:"", equipo:"", equipoPrestamo:"",
     fechaNac:"", nacionalidad:"", finContrato:"", finContratoMes:"", posicion:""
   });
-  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbxVQ8LJKvACT5u2abphHnRojIjEoUFzhuJ8KBuJIi7J-wp_HPiGATLgLcKnYrqHQmvcTw/exec";
+  const FAVORITOS_URL = "https://script.google.com/macros/s/AKfycbxFKxac9DuYV7sgPm-37nBF3ry0K-LNfGbWgRzYh7DdFRCxvI2nBswyqRBB9N1ZWjVPdQ/exec";
 
   useEffect(() => {
     const loadFavoritos = async () => {
@@ -469,7 +469,7 @@ export default function ScoutingApp() {
   const [dtFilterScout, setDtFilterScout] = useState("");
   const [dtSearch, setDtSearch] = useState("");
   const [showDTForm, setShowDTForm] = useState(false);
-  const DT_URL = "https://script.google.com/macros/s/AKfycbxVQ8LJKvACT5u2abphHnRojIjEoUFzhuJ8KBuJIi7J-wp_HPiGATLgLcKnYrqHQmvcTw/exec";
+  const DT_URL = "https://script.google.com/macros/s/AKfycbxFKxac9DuYV7sgPm-37nBF3ry0K-LNfGbWgRzYh7DdFRCxvI2nBswyqRBB9N1ZWjVPdQ/exec";
   const defaultDTForm = {
     nombre:"", estilo:"", formacion:"", agente:"", scout:"",
     fechaNac:"", nacionalidad:"", equipoActual:"", formaJuego:"",
@@ -2871,17 +2871,30 @@ export default function ScoutingApp() {
                         <div style={{display:"flex",gap:8}}>
                           <button className="btn-primary" style={{padding:"7px 16px",fontSize:12}} onClick={()=>{
                             if(!favForm.nombre) return;
-                            const nuevo = {...favForm, id:Date.now().toString()};
-                            // Guardar en todas las listas no — solo en la DB general (lista temporal)
-                            const listaTemp = listas.find(l=>l.nombre==="__db__") || {id:"__db__",nombre:"__db__",fecha:new Date().toLocaleDateString("es-ES"),jugadores:[]};
-                            const listaActualizada = {...listaTemp, jugadores:[...listaTemp.jugadores, nuevo]};
-                            setListas(prev=>{
-                              const existe = prev.find(l=>l.nombre==="__db__");
-                              return existe ? prev.map(l=>l.nombre==="__db__"?listaActualizada:l) : [...prev, listaActualizada];
+                            const nuevo = {...favForm, id:Date.now().toString(), esFavorito:true};
+                            // Guardar en Google Sheets pestaña "Jugadores favoritos"
+                            const params = new URLSearchParams({
+                              action: "saveJugadorFavorito",
+                              nombre: favForm.nombre, apellido: favForm.apellido||"",
+                              posicion: favForm.posicion||"", equipo: favForm.equipo||"",
+                              perfil: favForm.perfil||"", fechaNac: favForm.fechaNac||"",
+                              nacionalidad: favForm.nacionalidad||"", altura: favForm.altura||"",
+                              peso: favForm.peso||"", categoria: favForm.categoria||"",
+                              proyeccion: favForm.proyeccion||"", rango: favForm.rango||"",
+                              transferencia: favForm.transferencia||"",
+                              finContrato: favForm.finContratoMes?`${favForm.finContratoMes} ${favForm.finContrato||""}`.trim():"",
+                              liga: favForm.liga||"", agente: favForm.agente||"",
+                              equipoPrestamo: favForm.equipoPrestamo||""
                             });
-                            saveLista(listaActualizada);
+                            fetch(`${FAVORITOS_URL}?${params.toString()}`, {method:"GET",mode:"no-cors"});
+                            // Agregar también al estado local
+                            setListas(prev=>{
+                              const db = prev.find(l=>l.nombre==="__db__") || {id:"__db__",nombre:"__db__",fecha:"",jugadores:[]};
+                              const updated = {...db, jugadores:[...db.jugadores, nuevo]};
+                              return prev.find(l=>l.nombre==="__db__") ? prev.map(l=>l.nombre==="__db__"?updated:l) : [...prev, updated];
+                            });
                             setFavForm({nombre:"",apellido:"",equipo:"",equipoPrestamo:"",fechaNac:"",nacionalidad:"",finContrato:"",finContratoMes:"",posicion:""});
-                            showNotif("Jugador registrado en favoritos.");
+                            showNotif("Jugador registrado permanentemente.");
                           }}>Registrar</button>
                           <button className="btn-sec" style={{padding:"7px 12px",fontSize:12}} onClick={()=>setShowRegForm(false)}>Cancelar</button>
                         </div>
