@@ -2625,9 +2625,14 @@ export default function ScoutingApp() {
               const favLabelStyle = {display:"block",color:"#64748b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1.5,textTransform:"uppercase",marginBottom:4};
               const dropdownStyle = {position:"absolute",top:"100%",left:0,right:0,zIndex:200,background:"#111c16",border:"1px solid rgba(74,222,128,0.3)",borderRadius:6,maxHeight:160,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,0.5)"};
 
-              // Base de datos de jugadores favoritos (de todas las listas)
+              // Base de datos de jugadores favoritos — de listas guardadas + de Sheets "Jugadores favoritos"
               const allFavPlayers = {};
               listas.forEach(l => (l.jugadores||[]).forEach(j => { allFavPlayers[j.id] = j; }));
+              // Agregar jugadores de "Jugadores favoritos" en Sheets
+              players.filter(p=>p.esFavorito).forEach(p => {
+                const key = `${p.nombre.trim()} ${p.apellido.trim()}`;
+                if (!allFavPlayers[key]) allFavPlayers[key] = {...p, id: key};
+              });
               const favPlayersDB = Object.values(allFavPlayers);
 
               // Jugadores únicos del sistema para autocompletado
