@@ -464,6 +464,7 @@ export default function ScoutingApp() {
   const [campogramaLabels, setCampogramaLabels] = useState({});
   const [campogramaEditingLabel, setCampogramaEditingLabel] = useState(null);
   const campogramaRef = useRef(null);
+  const [dts, setDts] = useState([]);
   const [selectedDT, setSelectedDT] = useState(null);
   const [selectedDTIndex, setSelectedDTIndex] = useState(0);
   const [dtFilterScout, setDtFilterScout] = useState("");
